@@ -1,0 +1,23 @@
+/ 5 2026.10.23 m64
+/ M4 · the tickerplant on modules (run by labs/m4-pubsub.sh)
+q)tp:hopen 5710
+q)rdb:hopen 5711
+/ the plant: what it serves, and who subscribes (was count each .u.w)
+q)tp".u.t"
+`quote`trade
+q)tp"count each .u.subs[]"
+quote| 1
+trade| 1
+/ the vanilla RDB filled itself through the module's .u.sub
+q)rdb"tables[]!count each value each tables[]"
+quote| 0
+trade| 0
+q)rdb"select n:count i by sym from trade"
+sym| n
+---| -
+/ the filter on upd: a table the plant does not carry is refused, by name
+q)tp".u.upd[`trades;()]"
+'unknown table: trades
+/ .z.pc was set from inside the module, and closes over the module's names
+q)tp".z.pc"
+{del[;x]each t}

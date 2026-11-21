@@ -1,0 +1,9 @@
+'2026.11.21T06:08:28.295 assign
+  [7]  :mod/tick/cfg/test/cfg.q:4: spec:([port:5010;logdir:`:./log;tables:`trade`quote;name:"tp"]);
+                                                                         ^
+  [4]  /Users/rohanshilohshah/Code/beyond-kdb3/mod/tick/cfg/test/run.q:3: \l :mod/tick/cfg/test/cfg.q
+                                                                          ^
+  [3]  /Users/rohanshilohshah/.kx/mod/kx/test.q:417: .m.kx.0test.runFile:{[file:`s] setFileName[file]; system "l ",string[file]; setFileName[.z.f]}
+                                                                                                       ^
+  [2]  /Users/rohanshilohshah/Code/beyond-kdb3/mod/tick/cfg/test/run.q:3: t.runFile`:mod/tick/cfg/test/cfg.q;
+                                                                          ^

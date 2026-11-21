@@ -1,0 +1,23 @@
+/ 5 2026.10.23 m64
+/ A2 · dictionaries as arguments (4.1 · KDB-X)
+/ .Q.id sanitises dictionary keys (4.1 2024.09.13)
+q).Q.id[`b`b1``in!2 3 4 5]
+b  | 2
+b1 | 3
+a  | 4
+in1| 5
+/ xcol renames and xcols reorders the keys of a dictionary (KDB-X 2026.10.23)
+q)([a:`c;b:`d]) xcol ([a:10;b:20])
+c| 10
+d| 20
+q)`c xcols ([a:1;b:2;c:3])
+c| 3
+a| 1
+b| 2
+/ casting a dictionary whose values are all strings (fixed KDB-X 2026.10.02)
+q)"J"$([a:"1";b:"2"])
+a| 1
+b| 2
+/ settings that used to be lists or flags are now dictionaries
+q)type .Q.lim[]
+99h

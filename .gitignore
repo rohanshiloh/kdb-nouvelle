@@ -1,0 +1,10 @@
+# fetched by setup.sh, not ours to redistribute
+vendor/
+# tickerplant logs and per-process logs from lab M4
+log/
+out/*.log
+out/junit-*.xml
+.DS_Store
+# local scratch, not part of the document
+Claude outputs/
+/5710

@@ -1,0 +1,80 @@
+filename                     feature name                   status executionT..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q table   "a known table passes" error  0         ..
+
+filename                     feature name                        status execu..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q table   "an unknown table is named" fail   0    ..
+
+filename                     feature name                           status ex..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q table   "a string is not a table name" fail   0 ..
+
+filename                     feature name                  status executionTi..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q schema  "one good row passes" error  0          ..
+
+filename                     feature name                  status executionTi..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q schema  "a good batch passes" error  0          ..
+
+filename                     feature name                    status execution..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q schema  "a float size is named" fail   0        ..
+
+filename                     feature name                     status executio..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q schema  "a short row is refused" fail   0       ..
+
+filename                     feature name                              status..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q pattern "a filter converts on assignment" error ..
+
+filename                     feature name                              status..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q pattern "a projected filter in a pattern" error ..
+
+filename                     feature name                              status..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q pattern "a failed filter assigns nothing" fail  ..
+
+filename                     feature name                     status executio..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q filters "strings become symbols" error  0       ..
+
+filename                     feature name                             status ..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q filters "a timestamp becomes a timespan" error  ..
+
+filename                     feature name                status executionTime..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q filters "a null is refused" fail   0            ..
+
+filename                     feature name                      status executi..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q filters "inside the range passes" error  0      ..
+
+filename                     feature name                           status ex..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q filters "outside the range is refused" fail   0 ..
+
+filename                     feature name                              status..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q table   "a known table passes"            error ..
+:mod/tick/check/test/check.q table   "an unknown table is named"       fail  ..
+:mod/tick/check/test/check.q table   "a string is not a table name"    fail  ..
+:mod/tick/check/test/check.q schema  "one good row passes"             error ..
+:mod/tick/check/test/check.q schema  "a good batch passes"             error ..
+:mod/tick/check/test/check.q schema  "a float size is named"           fail  ..
+:mod/tick/check/test/check.q schema  "a short row is refused"          fail  ..
+:mod/tick/check/test/check.q pattern "a filter converts on assignment" error ..
+:mod/tick/check/test/check.q pattern "a projected filter in a pattern" error ..
+:mod/tick/check/test/check.q pattern "a failed filter assigns nothing" fail  ..
+:mod/tick/check/test/check.q filters "strings become symbols"          error ..
+:mod/tick/check/test/check.q filters "a timestamp becomes a timespan"  error ..
+:mod/tick/check/test/check.q filters "a null is refused"               fail  ..
+:mod/tick/check/test/check.q filters "inside the range passes"         error ..
+:mod/tick/check/test/check.q filters "outside the range is refused"    fail  ..
+'2026.11.21T06:08:38.355 check.xml
+  [2]  /Users/rohanshilohshah/Code/beyond-kdb3/mod/tick/check/test/run.q:7: `:out/junit-check.xml 0: t.junitReport r;
+                                                                                        ^

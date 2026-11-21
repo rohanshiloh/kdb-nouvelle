@@ -1,0 +1,38 @@
+<style>
+/* beyond-kdb3 additions: version tags, the three-column syntax labs, the module labs */
+.tag.v40{color:var(--sh)} .tag.v41{color:var(--s0)} .tag.vX{color:var(--s1)} .tag.vNUC{color:var(--bad)}
+.vtags{display:flex;gap:6px;flex-wrap:wrap}
+.lab3{grid-template-columns:270px 1fr}
+.outs{display:grid;grid-template-columns:1fr 1fr;gap:10px;min-width:0}
+.outs.one{grid-template-columns:1fr}
+.out{border:1px solid var(--line);border-radius:4px;min-width:0;background:var(--code-bg);display:flex;flex-direction:column}
+.out .vh{font:600 10.5px var(--sans);letter-spacing:.07em;text-transform:uppercase;padding:5px 10px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;color:var(--muted)}
+.out .vh span{font:400 10.5px var(--mono);letter-spacing:0;text-transform:none}
+.out.v4 .vh b{color:var(--s0)} .out.vx .vh b{color:var(--s1)}
+.out pre{margin:0;padding:8px 10px;font:11.5px/1.55 var(--mono);overflow:auto;max-height:440px;color:var(--fg)}
+.out pre .pq{color:var(--accent);font-weight:500}
+.out pre .pc{color:var(--muted)}
+.out pre .er{color:var(--bad)}
+.out pre .dl{background:color-mix(in srgb,var(--sig) 18%,transparent)}
+.out .pend{padding:12px 10px;font-size:12px;color:var(--muted);font-style:italic}
+.labsrc summary{margin-top:2px}
+.difflegend{font-size:11.5px;color:var(--muted)} .difflegend i{background:color-mix(in srgb,var(--sig) 18%,transparent);font-style:normal;padding:0 5px}
+.verdict{border-left:3px solid var(--sig);padding:8px 12px;background:var(--code-bg);font-size:13px;color:var(--fg)}
+pre.diff .da{color:var(--ok)} pre.diff .dd{color:var(--bad)} pre.diff .dh{color:var(--accent)}
+.lab3 .notes h3{flex-wrap:wrap}
+.lab .notes p{text-align:left;hyphens:manual}
+.out .vh b{text-transform:none;letter-spacing:.02em}
+@media (max-width:980px){.outs{grid-template-columns:1fr}}
+@media (max-width:860px){.lab3{grid-template-columns:1fr}}
+/* error names, in prose and in transcripts: a red box, like the version tags */
+code.errtag,.out pre .er{font-family:var(--mono);color:var(--bad);background:var(--bad-bg);border:1px solid currentColor;border-radius:3px;padding:0 4px}
+.out pre .er{display:inline-block;line-height:1.35;margin:1px 0}
+/* q highlighting: operators, iterators and brackets each get a colour of their own */
+/* names stay plain; keywords blue, symbols purple, strings green, numbers orange,
+   operators and iterators teal and bold, brackets grey, namespaces lavender */
+.code .o,.out pre .o{color:var(--sh);font-weight:600}
+.code .b,.out pre .b{color:var(--muted)}
+.code .z,.out pre .z{color:var(--lav)}
+.out pre .pq{color:var(--fg)} .out pre .pq .p{color:var(--accent)}
+.out pre .pq .k{color:var(--s0);font-weight:600} .out pre .pq .y{color:var(--s1)} .out pre .pq .s{color:var(--ok)} .out pre .pq .d{color:var(--sig)}
+</style>

@@ -1,0 +1,4 @@
+/ Dictionary literals are new in 4.1 (Changes in 4.1, "Dictionary literals").
+/ Before 4.1, every line below except the first used syntax that did not exist.
+q)enlist[`aaa]!enlist 123
+aaa| 123

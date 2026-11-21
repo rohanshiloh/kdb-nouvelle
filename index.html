@@ -1,0 +1,1931 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Beyond 3.x — Syntax &amp; Semantics · New Grammar for an Old Language</title>
+<meta name="description" content="The syntax kdb+ 4.0, 4.1 and KDB-X added to q: dictionary literals, pattern matching, filter functions, modules, and the changes that break old code. Labs run side by side on kdb+ 4.x and KDB-X.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,500;1,500;1,600&family=Schibsted+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+</head><body>
+<style>
+/* Layout: one sheet with wide margins. Overview (diagram + tables) → Run it (two columns) → Benchmarks → Labs (notes left, commands right) → Production → References */
+:root{
+  --bg:#eceff3; --sheet:#ffffff; --fg:#18212b; --muted:#5f6c7a; --line:#dfe4ea;
+  --accent:#1d5c9e; --s0:#1d5c9e; --s1:#9a3a8a; --sh:#18808a; --sig:#b5651d;
+  --s0-bg:#eef4fb; --s1-bg:#f8eef6; --code-bg:#f2f5f8; --ok:#1e7a4c; --ok-bg:#e3f3ea; --bad:#b3261e; --bad-bg:#fbe9e7;
+  --display:"EB Garamond","Hoefler Text",Baskerville,Georgia,serif;
+  --sans:"Schibsted Grotesk",-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1319; --sheet:#161d26; --fg:#e3e8ee; --muted:#93a0b0; --line:#28323e;
+  --accent:#7aaeea; --s0:#7aaeea; --s1:#d88bcb; --sh:#5cc4cc; --sig:#e3a15e;
+  --s0-bg:#18263a; --s1-bg:#2a1b29; --code-bg:#10161d; --ok:#5ccf95; --ok-bg:#163326; --bad:#f2867c; --bad-bg:#3a1c1a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1319; --sheet:#161d26; --fg:#e3e8ee; --muted:#93a0b0; --line:#28323e;
+  --accent:#7aaeea; --s0:#7aaeea; --s1:#d88bcb; --sh:#5cc4cc; --sig:#e3a15e;
+  --s0-bg:#18263a; --s1-bg:#2a1b29; --code-bg:#10161d; --ok:#5ccf95; --ok-bg:#163326; --bad:#f2867c; --bad-bg:#3a1c1a; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px}
+.sheet{max-width:1080px;margin:0 auto;background:var(--sheet);border:1px solid var(--line);border-radius:4px;
+  padding:48px 60px 44px;display:flex;flex-direction:column;gap:34px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:18px}
+h1{font-family:var(--display);font-style:italic;font-weight:600;font-size:60px;line-height:1;margin:0;letter-spacing:-.01em}
+.meta{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right}
+.abstract{font-family:var(--display);font-size:18px;line-height:1.5;max-width:74ch;margin:-12px 0 0}
+.part{display:flex;flex-direction:column;gap:18px}
+.part>h2{font-family:var(--display);font-style:italic;font-weight:600;font-size:30px;margin:0;border-bottom:1px solid var(--line);padding-bottom:6px;text-wrap:balance}
+h3{font-family:var(--display);font-style:italic;font-weight:500;font-size:22px;margin:0;display:flex;gap:10px;align-items:baseline}
+h3 .n{font-family:var(--mono);font-style:normal;font-size:12px;font-weight:500;color:var(--accent);letter-spacing:.04em}
+p{margin:0;color:var(--muted)}
+p.lead{color:var(--fg);max-width:78ch}
+b{color:var(--fg);font-weight:600}
+code{font-family:var(--mono);font-size:.86em}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:28px 48px}
+.col,.step{display:flex;flex-direction:column;gap:10px;min-width:0}
+.col{gap:24px}
+.code{position:relative;background:var(--code-bg);border:1px solid var(--line);border-radius:4px;min-width:0}
+.code pre{margin:0;padding:10px 64px 10px 12px;overflow-x:auto;font-family:var(--mono);font-size:12px;line-height:1.65}
+.code pre.tall{max-height:360px}
+.code button{position:absolute;top:6px;right:6px;font:500 10.5px var(--sans);letter-spacing:.06em;text-transform:uppercase;
+  background:var(--sheet);color:var(--accent);border:1px solid var(--line);border-radius:3px;padding:2px 7px;cursor:pointer}
+.code button:focus-visible,summary:focus-visible{outline:2px solid var(--accent)}
+.c{color:var(--muted)}
+tr.expl td{background:color-mix(in srgb,var(--s1) 10%,transparent)}
+.charts .fig svg{min-width:300px}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(440px,1fr));gap:22px 32px;margin:12px 0}.charts figure{margin:0;min-width:0}
+.code .k{color:var(--s0);font-weight:600}.code .y{color:var(--s1)}.code .s{color:var(--ok)}.code .d{color:var(--sig)}.code .z{color:var(--sh)}.code .p{color:var(--muted)}
+details summary{cursor:pointer;color:var(--accent);font-size:12.5px;font-weight:500}
+details[open] summary{margin-bottom:8px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:top}
+th{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td.p{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--accent)}
+figure{margin:0;min-width:0;display:flex;flex-direction:column;gap:10px}
+.fig{overflow-x:auto}
+.fig svg{display:block;width:100%;min-width:720px;height:auto;color:var(--fg)}
+.fig svg.strip{min-width:480px}
+.fig svg.card{min-width:420px}
+figcaption{font-size:12.5px;color:var(--muted);max-width:90ch}
+.shard-note{background:var(--s0-bg);border-left:3px solid var(--s0);padding:14px 18px;display:flex;flex-direction:column;gap:6px;border-radius:0 4px 4px 0}
+.shard-note p{color:var(--fg)}
+.lab{display:grid;grid-template-columns:300px 1fr;gap:16px 36px;padding-top:20px;border-top:1px solid var(--line)}
+.lab:first-of-type{border-top:0;padding-top:0}
+.notes{display:flex;flex-direction:column;gap:10px;min-width:0}
+.cmds{display:flex;flex-direction:column;gap:10px;min-width:0}
+.where{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.where .tag{text-transform:none;letter-spacing:0;padding:1px 6px}
+.notice{font-size:13px;color:var(--fg);border-left:2px solid var(--ok);padding-left:10px}
+.warn{font-size:13px;color:var(--fg);border-left:2px solid var(--sig);padding-left:10px}
+ol.seq{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;color:var(--fg);font-size:13px}
+ol.seq li::marker{font-family:var(--mono);color:var(--accent);font-size:11px}
+.span{grid-column:1/-1}
+.tree td{white-space:normal}
+.tree td:first-child{font-family:var(--mono);font-size:12px;white-space:nowrap;color:var(--fg)}
+.tree td .g{color:var(--muted)}
+.tag{font-family:var(--mono);font-size:11px;font-weight:500;padding:2px 6px;text-align:center;border-radius:3px;height:fit-content;border:1px solid currentColor}
+.t0{color:var(--s0)} .t1{color:var(--s1)} .tsh{color:var(--sh)} .tsig{color:var(--sig)} .tany{color:var(--muted)}
+.tradeoffs{display:flex;flex-direction:column;gap:12px}
+.tradeoffs h4{font-family:var(--display);font-style:italic;font-weight:600;font-size:19px;margin:0}
+.tradeoffs ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;color:var(--fg)}
+.tradeoffs li span{display:block;color:var(--muted);font-size:12.5px}
+.to-good,.to-bad{gap:10px!important;padding:14px 18px;border-radius:4px}
+.notes a{color:var(--accent)}
+.beyond td{white-space:normal;min-width:120px}
+.beyond td:first-child{font-weight:600;white-space:nowrap;min-width:0}
+.chip{font-family:var(--mono);font-size:10.5px;padding:1px 7px;border-radius:9px}
+.chip.yes{background:var(--ok-bg);color:var(--ok)} .chip.no{background:var(--code-bg);color:var(--muted);border:1px solid var(--line)}
+.logmodes{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.logmodes>div{background:var(--code-bg);border:1px solid var(--line);border-radius:4px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.logmodes h4{margin:0;font-family:var(--mono);font-size:12px;color:var(--accent);font-weight:500;letter-spacing:.04em}
+.logmodes pre{margin:0;font-family:var(--mono);font-size:11.5px;line-height:1.5;color:var(--fg);overflow-x:auto}
+.logmodes p{font-size:12px}
+.step .lead a,.notes a{color:var(--accent)}
+@media (max-width:860px){.logmodes{grid-template-columns:1fr}}
+.toc{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:20px 28px;border:1px solid var(--line);border-radius:4px;padding:18px 22px;background:var(--code-bg)}
+.toc h4{margin:0 0 6px;font-family:var(--display);font-style:italic;font-weight:600;font-size:18px}
+.toc h4 a{color:var(--fg);text-decoration:none}
+.toc ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px}
+.toc li a{color:var(--muted);text-decoration:none;font-size:12.5px;display:flex;gap:8px;line-height:1.4}
+.toc li a:hover,.toc li a:focus-visible{color:var(--accent);text-decoration:underline}
+.toc .tn{font-family:var(--mono);font-size:11px;color:var(--accent);min-width:22px;flex:none;padding-top:1px}
+[id]{scroll-margin-top:16px}
+@media (max-width:860px){.toc{grid-template-columns:1fr 1fr}}
+@media (max-width:520px){.toc{grid-template-columns:1fr}}
+:root{--s0-strong:#1d5c9e;--sig-strong:#9c5414;--sh-strong:#146d76;--ok-strong:#1e7a4c;--bad-strong:#b3261e;--on-strong:#ffffff}
+.shard-note{--bar:var(--s0-strong);border-left:3px solid var(--bar)!important;overflow:hidden}
+.note-title{margin:-14px -18px 6px;padding:8px 18px;background:var(--bar);color:var(--on-strong);font-family:var(--display);font-style:italic;font-weight:600;font-size:19px;line-height:1.2;letter-spacing:.005em}
+.note-title code{color:var(--on-strong)}
+h1,.part>h2,h3,h4,.toc h4,.note-title,.tradeoffs h4,.logmodes h4{font-variant-caps:small-caps;font-feature-settings:"smcp" 1,"c2sc" 0;font-style:normal!important;letter-spacing:.035em}
+h1{letter-spacing:.02em}
+svg text[font-style="italic"]{font-variant-caps:small-caps;font-style:normal;letter-spacing:.03em}
+h3 .n,.logmodes h4{font-variant-caps:normal;font-feature-settings:normal;letter-spacing:.04em}
+:root{--sage:#5f7a5c;--rose:#a35d6a;--lav:#6d6597;--apricot:#a3653a;--euc:#4d7775;--mauve:#7e5a7e;--sage-t:#eef2ec;--rose-t:#f7ecee;--lav-t:#efedf6;--apricot-t:#f8efe6;--euc-t:#eaf2f1;--mauve-t:#f4ecf3;}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--sage-t:#1d251c;--rose-t:#2b1d21;--lav-t:#221f2e;--apricot-t:#2c2219;--euc-t:#1a2625;--mauve-t:#271d27;}}
+:root[data-theme="dark"]{--sage-t:#1d251c;--rose-t:#2b1d21;--lav-t:#221f2e;--apricot-t:#2c2219;--euc-t:#1a2625;--mauve-t:#271d27;}
+#chained-note{--bar:var(--lav);background:var(--lav-t)!important}
+#signed-bps{--bar:var(--apricot);background:var(--apricot-t)!important}
+#internalise{--bar:var(--euc);background:var(--euc-t)!important}
+#bookstate{--bar:var(--mauve);background:var(--mauve-t)!important}
+#inband{--bar:var(--rose);background:var(--rose-t)!important}
+.to-good{background:var(--sage-t)!important;border-left:3px solid var(--sage)!important} .to-good h4{color:var(--sage)}
+.to-bad{background:var(--rose-t)!important;border-left:3px solid var(--rose)!important} .to-bad h4{color:var(--rose)}
+.to-good,.to-bad{display:flex;flex-direction:column}
+.to-good h4,.to-bad h4{margin:0 0 2px;font-family:var(--display);font-size:17px}
+.titleblock{display:flex;flex-direction:column;gap:6px}
+.kicker{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.trilogy{font-size:13.5px;color:var(--muted);max-width:640px}
+.trilogy b{color:var(--fg)}
+.trilogy a,.mnote a,footer a{color:var(--accent)}
+.byline{font-family:var(--mono);font-size:13px;color:var(--muted);letter-spacing:.02em;user-select:all}
+.sheet{hyphens:auto;-webkit-hyphens:auto}
+.abstract,p,li,figcaption{text-align:justify;text-justify:inter-word}
+.toc li,td p,.byline,.meta{text-align:left}
+h1 .subtitle{display:block;font-size:.34em;margin-top:10px;color:var(--muted);letter-spacing:.04em;font-style:italic}
+footer{border-top:1px solid var(--line);padding-top:14px;font-size:12.5px;color:var(--muted)}
+footer .ok{color:var(--ok);font-weight:600}
+@media (max-width:860px){.cols,.lab{grid-template-columns:1fr}.sheet{padding:28px 20px}.meta{text-align:left}h1{font-size:42px}}
+.rules{display:grid;grid-template-columns:1fr 1fr;gap:16px 32px}
+.rule{display:flex;gap:14px;align-items:flex-start}
+.rule h4{margin:0 0 4px;font-family:var(--display);font-size:19px;font-weight:600}
+.rule p{margin:0}
+.rn{font-family:var(--display);font-size:30px;line-height:.95;color:var(--accent);min-width:34px;font-weight:600;font-variant-numeric:tabular-nums}
+.refs{display:flex;flex-direction:column;gap:14px}
+.refitem{display:grid;grid-template-columns:150px 1fr;gap:6px 18px;align-items:baseline}
+.refitem .rtag{font-family:var(--mono);font-size:11px;color:var(--accent);text-transform:uppercase;letter-spacing:.05em}
+.refitem a{color:var(--fg);border-bottom:1px solid var(--line);text-decoration:none;word-break:break-word}
+.refitem a:hover{border-bottom-color:var(--accent)}
+.refitem p{font-size:12.5px;margin-top:3px}
+@media (max-width:620px){.refitem{grid-template-columns:1fr}}
+.meta a{color:var(--accent);text-decoration:none;border-bottom:1px solid currentColor}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);font-family:var(--mono)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:16px;height:0;border-top-width:2px;border-top-style:solid;display:inline-block}
+.wide td{white-space:normal;vertical-align:top}
+.wide td:first-child{font-weight:600;white-space:nowrap}
+.wide code{font-size:11.5px;white-space:nowrap}
+.gloss{font-size:12px} .gloss th,.gloss td{padding:5px 7px}
+.gloss td:first-child{white-space:normal}
+.gloss td:nth-child(1){min-width:96px;width:11%} .gloss td:nth-child(2){min-width:170px;width:24%}
+.gloss td:nth-child(3){min-width:130px;width:18%} .gloss td:nth-child(4){min-width:150px;width:21%}
+.gloss td:nth-child(5){min-width:170px;width:26%}
+.gloss code{font-size:11px}
+.cheat{font-size:12px} .cheat th,.cheat td{padding:5px 7px}
+.cheat td:nth-child(1){min-width:104px;width:14%} .cheat td:nth-child(2){min-width:180px;width:27%}
+.cheat td:nth-child(3){min-width:140px;width:21%} .cheat td:nth-child(4){min-width:112px;width:16%}
+.cheat td:nth-child(5){min-width:140px;width:22%}
+.cheat td:nth-child(2){font-family:var(--mono);font-size:11.5px;color:var(--accent)}
+#nbbo{--bar:var(--rose);background:var(--rose-t)!important}
+.mistakes{display:grid;grid-template-columns:1fr 1fr;gap:16px 32px}
+.mistake{display:flex;gap:12px;align-items:flex-start}
+.mistake h4{margin:0 0 3px;font-family:var(--display);font-size:16.5px;font-weight:600;color:var(--rose)}
+.mistake p{margin:0;font-size:12.5px}
+.mistake .mn{font-family:var(--mono);font-size:12px;color:var(--rose);min-width:20px;flex:none;padding-top:3px;
+  font-variant-numeric:tabular-nums}
+@media (max-width:860px){.mistakes,.rules{grid-template-columns:1fr}}
+.companion{font-size:12.5px;color:var(--muted);border-left:2px solid var(--lav);padding-left:10px;max-width:640px}
+.companion a{color:var(--accent)}
+code,pre,th,h1,h2,h3,h4,.byline,.meta,.toc{hyphens:none;-webkit-hyphens:none}
+.themebtn,.expandbtn{font:inherit;font-size:11.5px;color:var(--muted);background:none;border:1px solid var(--line);border-radius:4px;padding:2px 8px;cursor:pointer}
+.themebtn:hover,.expandbtn:hover{color:var(--fg);border-color:var(--muted)}
+.themebtn:focus-visible,.expandbtn:focus-visible,.totop:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.expandbtn{margin:0 0 10px}
+.totop{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:5;font-size:11.5px;
+  color:var(--muted);background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:5px 11px;text-decoration:none;opacity:.9}
+.totop:hover{color:var(--fg)}
+@media print{.totop,.themebtn,.expandbtn,.copy{display:none!important}body{background:#fff}.sheet{border:0;box-shadow:none;max-width:none;margin:0;padding:0}
+  details.srcfile>.body{display:block}section{break-inside:auto}figure,.lab,.shard-note{break-inside:avoid}}
+/* source file panes */
+.srcfiles{display:flex;flex-direction:column;gap:10px}
+.srcfile{border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--sheet)}
+.srcfile>summary{list-style:none;cursor:pointer;padding:11px 14px;display:flex;gap:12px;align-items:baseline;color:var(--fg);font-size:13px}
+.srcfile>summary::-webkit-details-marker{display:none}
+.srcfile>summary::before{content:"▸";color:var(--muted);font-size:10px;flex:none;transform:translateY(-1px)}
+.srcfile[open]>summary::before{content:"▾"}
+.srcfile[open]>summary{border-bottom:1px solid var(--line)}
+.srcfile summary .fn{font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:600;flex:none}
+.srcfile summary .role{color:var(--muted);min-width:0}
+.srcfile summary .lc{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--muted);flex:none}
+.srcfile .body{padding:12px 14px;display:flex;flex-direction:column;gap:10px;background:var(--code-bg)}
+.srcfile .desc{font-size:12.5px;color:var(--muted)}
+.srcfile .code{background:var(--sheet)}
+.srcfile .code pre{max-height:460px;overflow:auto}
+/* formulas (MathJax SVG) */
+.eq{color:var(--fg);overflow-x:auto;min-width:0}
+mjx-container{color:var(--fg)}
+mjx-container svg{max-width:100%}
+.formulas{display:flex;flex-direction:column;gap:12px;margin-top:4px}
+.fxrow{display:grid;grid-template-columns:1.1fr 1fr;gap:4px 26px;align-items:center;border-top:1px solid var(--line);padding-top:12px}
+.fxrow:first-child{border-top:0;padding-top:0}
+.fxrow .lbl{grid-column:1/-1;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.fxrow .eq{min-width:0}
+.fxrow .code{min-width:0}
+@media (max-width:720px){.fxrow{grid-template-columns:1fr}}
+/* tufte-style margin notes */
+.annot>p,.annot>.lead,.annot>h3{max-width:640px}
+.mnote{float:right;clear:right;width:244px;margin:2px -300px 15px 0;font-family:var(--sans);font-size:11px;line-height:1.5;color:var(--muted);border-left:2px solid var(--line);padding-left:12px;text-align:left}
+.mnote b{color:var(--fg)}
+.annot figure{clear:both}
+@media (max-width:1180px){.annot>p,.annot>.lead,.annot>h3{max-width:none}
+  .mnote{float:right;clear:right;width:min(46%,260px);margin:4px 0 10px 20px;padding:9px 13px;border-left:3px solid var(--accent);background:var(--code-bg);border-radius:0 4px 4px 0;font-size:12px}}
+@media (max-width:560px){.annot .mnote{float:none;width:auto;margin:11px 0}}
+</style>
+<style>
+/* beyond-kdb3 additions: version tags, the three-column syntax labs, the module labs */
+.tag.v40{color:var(--sh)} .tag.v41{color:var(--s0)} .tag.vX{color:var(--s1)} .tag.vNUC{color:var(--bad)}
+.vtags{display:flex;gap:6px;flex-wrap:wrap}
+.lab3{grid-template-columns:270px 1fr}
+.outs{display:grid;grid-template-columns:1fr 1fr;gap:10px;min-width:0}
+.outs.one{grid-template-columns:1fr}
+.out{border:1px solid var(--line);border-radius:4px;min-width:0;background:var(--code-bg);display:flex;flex-direction:column}
+.out .vh{font:600 10.5px var(--sans);letter-spacing:.07em;text-transform:uppercase;padding:5px 10px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:8px;color:var(--muted)}
+.out .vh span{font:400 10.5px var(--mono);letter-spacing:0;text-transform:none}
+.out.v4 .vh b{color:var(--s0)} .out.vx .vh b{color:var(--s1)}
+.out pre{margin:0;padding:8px 10px;font:11.5px/1.55 var(--mono);overflow:auto;max-height:440px;color:var(--fg)}
+.out pre .pq{color:var(--accent);font-weight:500}
+.out pre .pc{color:var(--muted)}
+.out pre .er{color:var(--bad)}
+.out pre .dl{background:color-mix(in srgb,var(--sig) 18%,transparent)}
+.out .pend{padding:12px 10px;font-size:12px;color:var(--muted);font-style:italic}
+.labsrc summary{margin-top:2px}
+.difflegend{font-size:11.5px;color:var(--muted)} .difflegend i{background:color-mix(in srgb,var(--sig) 18%,transparent);font-style:normal;padding:0 5px}
+.verdict{border-left:3px solid var(--sig);padding:8px 12px;background:var(--code-bg);font-size:13px;color:var(--fg)}
+pre.diff .da{color:var(--ok)} pre.diff .dd{color:var(--bad)} pre.diff .dh{color:var(--accent)}
+.lab3 .notes h3{flex-wrap:wrap}
+.lab .notes p{text-align:left;hyphens:manual}
+.out .vh b{text-transform:none;letter-spacing:.02em}
+@media (max-width:980px){.outs{grid-template-columns:1fr}}
+@media (max-width:860px){.lab3{grid-template-columns:1fr}}
+/* error names, in prose and in transcripts: a red box, like the version tags */
+code.errtag,.out pre .er{font-family:var(--mono);color:var(--bad);background:var(--bad-bg);border:1px solid currentColor;border-radius:3px;padding:0 4px}
+.out pre .er{display:inline-block;line-height:1.35;margin:1px 0}
+/* q highlighting: operators, iterators and brackets each get a colour of their own */
+/* names stay plain; keywords blue, symbols purple, strings green, numbers orange,
+   operators and iterators teal and bold, brackets grey, namespaces lavender */
+.code .o,.out pre .o{color:var(--sh);font-weight:600}
+.code .b,.out pre .b{color:var(--muted)}
+.code .z,.out pre .z{color:var(--lav)}
+.out pre .pq{color:var(--fg)} .out pre .pq .p{color:var(--accent)}
+.out pre .pq .k{color:var(--s0);font-weight:600} .out pre .pq .y{color:var(--s1)} .out pre .pq .s{color:var(--ok)} .out pre .pq .d{color:var(--sig)}
+</style>
+<div class="sheet">
+<header>
+  <div class="titleblock"><div class="kicker">A Companion: The Language</div><h1>Beyond 3.x — Syntax &amp; Semantics<span class="subtitle">New Grammar for an Old Language</span></h1><div class="byline"><a href="https://rohanshiloh.github.io/kdb-nouvelle/" style="color:inherit;text-decoration:none">rohanshiloh.github.io/kdb-nouvelle</a></div></div>
+  <div class="meta">kdb+ 4.0 · 4.1 · KDB-X 5.0<br>~/Code/kdb-nouvelle<br>syntax &amp; NUCs only<br><button class="themebtn" id="themebtn" type="button" aria-label="Switch colour theme">Theme: auto</button></div>
+</header>
+
+<p class="abstract">Between kdb+ 3.6 and KDB-X, q gained more new grammar than in the previous decade: dictionary literals, assignments that take values apart and check them on the way in, functions that refuse bad arguments before their body runs, and a module system with its own rules for names. It also became stricter, and some code that ran for years now stops with an error. This document covers only that: the syntax, and the changes that break code. Every claim is a lab, run on KDB-X and set beside what KX's release notes say the same line did before, so you can see exactly what changed and when.</p>
+
+<nav class="toc" id="contents" aria-label="Contents">
+  <div><h4><a href="#intro">What Changed</a></h4><ol><li><a href="#intro-why">Why It Matters</a></li><li><a href="#fig-timeline">Three Releases</a></li><li><a href="#intro-read">How to Read a Lab</a></li></ol></div>
+  <div><h4><a href="#literals">Literals</a></h4><ol><li><a href="#lab-a1"><span class="tn">A1</span>Dictionary Literals</a></li><li><a href="#lab-a2"><span class="tn">A2</span>Dictionaries as Arguments</a></li></ol></div>
+  <div><h4><a href="#patterns">Patterns</a></h4><ol><li><a href="#fig-pattern"><span class="tn">·</span>Anatomy of a Pattern</a></li><li><a href="#lab-b1"><span class="tn">B1</span>Destructuring</a></li><li><a href="#lab-b2"><span class="tn">B2</span>Types &amp; Filters</a></li><li><a href="#lab-b3"><span class="tn">B3</span>The Pattern Conditional</a></li><li><a href="#lab-b4"><span class="tn">B4</span>Caught at Parse Time</a></li></ol></div>
+  <div><h4><a href="#semantics">Stricter Semantics</a></h4><ol><li><a href="#lab-c1"><span class="tn">C1</span>qSQL Tightened</a></li><li><a href="#lab-c2"><span class="tn">C2</span>Numbers, Bytes, Guids</a></li></ol></div>
+  <div><h4><a href="#names">Names</a></h4><ol><li><a href="#fig-names"><span class="tn">·</span>Where a Name Is Looked Up</a></li><li><a href="#lab-d1"><span class="tn">D1</span>Namespaces</a></li><li><a href="#lab-e1"><span class="tn">E1</span>Loading &amp; One-shot IPC</a></li></ol></div>
+  <div><h4><a href="#modules">Modules</a></h4><ol><li><a href="#fig-module"><span class="tn">·</span>Anatomy of a Module</a></li><li><a href="#lab-m1"><span class="tn">M1</span>Using Modules</a></li><li><a href="#lab-m2"><span class="tn">M2</span>Writing One: tick.cfg</a></li><li><a href="#lab-m3"><span class="tn">M3</span>Filters as a Library</a></li><li><a href="#lab-m4"><span class="tn">M4</span>The Tickerplant on Modules</a></li><li><a href="#virtual-tables"><span class="tn">·</span>Beyond Syntax: Virtual Tables</a></li></ol></div>
+  <div><h4><a href="#breaks">What Breaks</a></h4><ol><li><a href="#breaks"><span class="tn">·</span>The upgrade checklist</a></li><li><a href="#rules"><span class="tn">·</span>Four rules</a></li></ol></div>
+  <div><h4><a href="#references">References</a></h4><ol><li><a href="#references"><span class="tn">·</span>Release notes</a></li><li><a href="#references"><span class="tn">·</span>Guides &amp; talks</a></li><li><a href="#references"><span class="tn">·</span>Modules</a></li></ol></div>
+</nav>
+
+<!-- ───────────── INTRODUCTION ───────────── -->
+<section class="part annot" id="intro">
+  <h2>What Changed</h2>
+  <p class="companion">Companion to the trilogy: <a href="https://rohanshiloh.github.io/order-trade-lifecycle/">The Order &amp; Trade Lifecycle</a>, <a href="https://rohanshiloh.github.io/exec-tca-stack/">Anatomy of a Fill</a> and <a href="https://rohanshiloh.github.io/tickerplant.ai/">Sharded Ticks</a> use this grammar; this document explains it.</p>
+  <h3 id="intro-why"><span class="n">1</span>Why It Matters</h3>
+  <p class="lead">For most of its life, q had one way to build a dictionary (<code>k!v</code>), one way to assign (<code>name:value</code>) and one way to check an argument (by hand, in the body).<span class="mnote"><b>NUC.</b> Not upwardly compatible: KX's term for a change after which some existing code behaves differently or stops working. Every NUC in this document is tagged.</span> kdb+ 4.1 changed all three. A dictionary now has a literal form, <code>([a:1;b:2])</code>. The left side of <code>:</code> can be a <i>pattern</i> that takes a value apart, checks its types and transforms it, and a failed match assigns nothing at all. The same patterns work in a parameter list, so a function can refuse a bad argument before its body runs. KDB-X then added modules: code with a private namespace, loaded with <code>use</code> and given whatever name the caller chooses.</p>
+  <p class="lead">The new syntax is not decoration. A tickerplant's <code>upd</code> that checks its table name in the parameter list cannot log a message for a table that does not exist; a config loader that types its settings by pattern cannot start a process on port <code>0N</code>. The other half of the story is that q became stricter. Some of what 3.x accepted is now an error, often at parse time, and some results changed quietly. The <a href="#breaks">checklist</a> at the end lists every one.</p>
+
+  <figure id="fig-timeline">
+    <div class="fig">
+<svg viewBox="0 0 980 300" role="img" aria-label="A timeline of q's grammar. kdb+ 3.6 in 2018 is the baseline. kdb+ 4.0, March 2020, made qSQL stricter and added one-shot queries with a timeout. kdb+ 4.1, February 2024, added dictionary literals, pattern matching, type checks and filter functions in parameters, the pattern conditional, and moved several mistakes to parse time. KDB-X, general availability November 2025, added modules with use and export, relative loads, dictionary arguments to xcol and xcols, ordered guids and deletable namespaces, and made numeric conversions return null consistently.">
+  <line x1="40" y1="70" x2="950" y2="70" stroke="currentColor" stroke-opacity=".5" stroke-width="1.2"/>
+  <g font-family="Schibsted Grotesk,sans-serif" text-anchor="middle">
+    <circle cx="90" cy="70" r="7" fill="var(--sheet)" stroke="var(--muted)" stroke-width="1.6"/>
+    <text x="90" y="40" font-size="14" font-weight="600" fill="var(--muted)">3.6</text>
+    <text x="90" y="56" font-size="10.5" fill="var(--muted)" font-family="JetBrains Mono,monospace">2018</text>
+    <circle cx="300" cy="70" r="7" fill="var(--sheet)" stroke="var(--sh)" stroke-width="2"/>
+    <text x="300" y="40" font-size="14" font-weight="600" fill="var(--sh)">kdb+ 4.0</text>
+    <text x="300" y="56" font-size="10.5" fill="var(--muted)" font-family="JetBrains Mono,monospace">2020.03.17</text>
+    <circle cx="560" cy="70" r="7" fill="var(--sheet)" stroke="var(--s0)" stroke-width="2"/>
+    <text x="560" y="40" font-size="14" font-weight="600" fill="var(--s0)">kdb+ 4.1</text>
+    <text x="560" y="56" font-size="10.5" fill="var(--muted)" font-family="JetBrains Mono,monospace">2024.02.13</text>
+    <circle cx="820" cy="70" r="7" fill="var(--sheet)" stroke="var(--s1)" stroke-width="2"/>
+    <text x="820" y="40" font-size="14" font-weight="600" fill="var(--s1)">KDB-X 5.0</text>
+    <text x="820" y="56" font-size="10.5" fill="var(--muted)" font-family="JetBrains Mono,monospace">GA 2025.11.17</text>
+  </g>
+  <g font-family="Schibsted Grotesk,sans-serif" font-size="11.5" fill="var(--fg)">
+    <text x="40" y="104" fill="var(--muted)">the baseline: k!v,</text>
+    <text x="40" y="120" fill="var(--muted)">name:value, checks</text>
+    <text x="40" y="136" fill="var(--muted)">written by hand</text>
+    <text x="210" y="104">qSQL stricter: duplicate</text>
+    <text x="210" y="120">names, by-clause length,</text>
+    <text x="210" y="136">lj needs a keyed table</text>
+    <text x="210" y="160">one-shot query with timeout</text>
+    <text x="210" y="176" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--sh)">`::[("h:p";ms);q]</text>
+    <text x="440" y="104">dictionary literals</text>
+    <text x="440" y="120" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--s0)">([a:1;b:2])</text>
+    <text x="440" y="144">pattern-matching assignment</text>
+    <text x="440" y="160" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--s0)">(a;([k:v])):x</text>
+    <text x="440" y="184">types &amp; filters in parameters</text>
+    <text x="440" y="200" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--s0)">{[x:`j;y:check]…}</text>
+    <text x="440" y="224">the pattern conditional :[v;p;r;…]</text>
+    <text x="440" y="244">mistakes caught at parse time</text>
+    <text x="700" y="104">modules: use, export, .z.m</text>
+    <text x="700" y="120" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--s1)">os:use`kx.os</text>
+    <text x="700" y="144">relative loads <tspan font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--s1)">\l .:f.q</tspan></text>
+    <text x="700" y="168">dictionary arguments: xcol, xcols,</text>
+    <text x="700" y="184">.Q.lim, .Q.ipc</text>
+    <text x="700" y="208">ordered guids, deletable namespaces</text>
+    <text x="700" y="232">null, not garbage, on bad casts</text>
+  </g>
+  <g font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--bad)">
+    <text x="210" y="276">3 NUCs</text><text x="440" y="276">8 NUCs</text><text x="700" y="276">5 NUCs</text>
+  </g>
+</svg>
+    </div>
+    <figcaption><b>Three releases.</b> 4.0 tightened what already existed; 4.1 is where the grammar itself grew; KDB-X added modules and turned several settings that were lists or flags into dictionaries. The red counts are the NUCs in the <a href="#breaks">checklist</a>, by release.</figcaption>
+  </figure>
+
+  <h3 id="intro-read"><span class="n">2</span>How to Read a Lab</h3>
+  <p class="lead">Each syntax lab runs one script, <code>labs/&lt;name&gt;.q</code>, through a runner that prints what the console would. The left column is the argument. On the right, the <b>KDB-X</b> column is that transcript, exactly as printed. Beside it, <b>Before</b> is what the same lines did before the change, taken from KX's release notes and marked <i>documented, not run</i>: KX no longer issues kdb+ 4.x licences for personal use, so the old behaviour is cited rather than reproduced. Where a line's result changed, both are <span class="difflegend"><i>highlighted</i></span>; a line that is simply new says when it arrived. With a kdb+ 4.x licence, <code>Q4=… ./run-labs.sh</code> replaces the Before column with a real transcript. The tags under each title say which release introduced what the lab shows: <span class="tag v40">4.0</span> <span class="tag v41">4.1</span> <span class="tag vX">KDB-X</span> <span class="tag vNUC">NUC</span>.</p>
+  <p>Module labs have one transcript, because modules exist only in KDB-X. To reproduce any of it, clone the repository, run <code>./setup.sh</code> once, then <code>QX=… ./run-labs.sh</code>; the page rebuilds itself from the new transcripts.</p>
+  <div class="code"><pre>git clone https://github.com/rohanshiloh/kdb-nouvelle &amp;&amp; cd kdb-nouvelle
+./setup.sh                                        <span class="c"># vendor kdb-tick, install kx.test</span>
+QX=~/.kx/bin/q ./run-labs.sh                      <span class="c"># every lab on KDB-X, rebuild index.html</span></pre></div>
+</section>
+
+<!-- ───────────── LITERALS ───────────── -->
+<section class="part" id="literals">
+  <h2>Literals</h2>
+  <p class="lead">A table always had a literal, <code>([]a:1 2;b:3 4)</code>, and a keyed table had <code>([k:…]v:…)</code>. The dictionary, the structure both are built from, did not: you wrote <code>`a`b!1 2</code>, and a one-key dictionary needed two <code>enlist</code>s. 4.1 closes the gap with the same bracket grammar, and every rule of the table literal carries over: bare names take their values from variables, omitted values make a projection, and omitted names are generated.</p>
+
+  <div class="lab lab3" id="lab-a1">
+    <div class="notes">
+      <h3><span class="n">A1</span>Dictionary Literals</h3>
+      <div class="vtags"><span class="tag v41">4.1</span></div>
+      <p><code>([k:v;…])</code> is a dictionary with symbol keys, and <code>~</code> to the <code>!</code> form. The win is largest for one key, where <code>enlist[`a]!enlist 1</code> becomes <code>([a:1])</code>, and for building a dictionary from variables, <code>([a;b])</code>.</p>
+      <p>An omitted value, <code>([a:101;b:])</code>, is a projection waiting for it: apply it to a list of values with <code>each</code> and you get a table, one row per value.</p>
+      <p class="warn">Keys must be valid q names, so <code>([10:`a])</code> is <code class="errtag">'type</code>; use <code>!</code> for anything else. A <b>duplicate</b> key is not an error: q renames it (<code>a</code>, <code>a1</code>), so a typo silently adds a key. And a file handle as a value needs parentheses: in <code>([log:`:./log])</code> the <code>`:</code> reads as the start of an assignment and the line fails with <code class="errtag">'assign</code>; <code>([log:(`:./log)])</code> works.</p>
+    </div>
+    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Before · KX release notes</b><span>documented, not run</span></div><pre><span class="pc">/ Dictionary literals are new in 4.1 (Changes in 4.1, &quot;Dictionary literals&quot;).</span>
+<span class="pc">/ Before 4.1, every line below except the first used syntax that did not exist.</span>
+<span class="pq">q)enlist[`aaa]!enlist 123</span>
+aaa| 123</pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ A1 · dictionary literals (4.1)</span>
+<span class="pc">/ the 4.0 way, and the 4.1 way</span>
+<span class="pq">q)enlist[`aaa]!enlist 123</span>
+aaa| 123
+<span class="pq">q)([aaa:123])</span>
+aaa| 123
+<span class="pq">q)([aaa:123])~enlist[`aaa]!enlist 123</span>
+1b
+<span class="pq">q)([a:100;b:200;c:300])</span>
+a| 100
+b| 200
+c| 300
+<span class="pc">/ bare names take key and value from variables of the same name</span>
+<span class="pq">q)a:10</span>
+<span class="pq">q)b:20</span>
+<span class="pq">q)([a;b])</span>
+a| 10
+b| 20
+<span class="pc">/ the empty dictionary has symbol keys</span>
+<span class="pq">q)([])~(`symbol$())!()</span>
+1b
+<span class="pc">/ an omitted value makes a projection</span>
+<span class="pq">q)d:([a:101;b:])</span>
+<span class="pq">q)d 102</span>
+a| 101
+b| 102
+<span class="pq">q)d each`AA`BB`CC</span>
+a   b 
+------
+101 AA
+101 BB
+101 CC
+<span class="pq">q)([k1:;k2:])[1;&quot;a&quot;]</span>
+k1| 1
+k2| &quot;a&quot;
+<span class="pc">/ edge cases: implicit keys, duplicate keys, non-symbol keys</span>
+<span class="pq">q)([0;1;2])</span>
+x | 0
+x1| 1
+x2| 2
+<span class="pq">q)([a:10;b:20;a:40])</span>
+a | 10
+b | 20
+a1| 40
+<span class="pq">q)([10:`a;20:`b])</span>
+<span class="er">&#x27;type</span>
+<span class="pc">/ order is part of a dictionary</span>
+<span class="pq">q)([a:1;b:2])~([b:2;a:1])</span>
+0b</pre></div></div><details class="labsrc"><summary>Show labs/a1-dict-literals.q</summary><div class="code"><pre>/ A1 · dictionary literals (4.1)
+/ the 4.0 way, and the 4.1 way
+enlist[`aaa]!enlist 123
+([aaa:123])
+([aaa:123])~enlist[`aaa]!enlist 123
+([a:100;b:200;c:300])
+/ bare names take key and value from variables of the same name
+a:10
+b:20
+([a;b])
+/ the empty dictionary has symbol keys
+([])~(`symbol$())!()
+/ an omitted value makes a projection
+d:([a:101;b:])
+d 102
+d each`AA`BB`CC
+([k1:;k2:])[1;&quot;a&quot;]
+/ edge cases: implicit keys, duplicate keys, non-symbol keys
+([0;1;2])
+([a:10;b:20;a:40])
+([10:`a;20:`b])
+/ a file handle as a value needs parentheses: `: reads as the start of an assignment
+([log:`:./log])
+([log:(`:./log)])
+/ order is part of a dictionary
+([a:1;b:2])~([b:2;a:1])</pre></div></details></div>
+  </div>
+
+  <div class="lab lab3" id="lab-a2">
+    <div class="notes">
+      <h3><span class="n">A2</span>Dictionaries as Arguments</h3>
+      <div class="vtags"><span class="tag v41">4.1</span><span class="tag vX">KDB-X</span><span class="tag vNUC">NUC</span></div>
+      <p>Once a dictionary is cheap to write, it becomes the natural way to pass options and get back structured answers. KDB-X uses it that way: <code>xcol</code> and <code>xcols</code> now rename and reorder dictionary keys, <code>.Q.ipc[h;([z:0b])]</code> takes its options as one, and <code>.Q.lim[]</code> returns one.</p>
+      <p class="warn"><code>.Q.lim</code> changing its result to a dictionary is a NUC (KDB-X 2026.04.10): code that indexed its old result by position breaks.</p>
+    </div>
+    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Before · KX release notes</b><span>documented, not run</span></div><pre><span class="pc">/ Each line uses something added after 4.1 shipped.</span>
+<span class="pq">q).Q.id[`b`b1``in!2 3 4 5]</span>
+— new: .Q.id on dictionaries (4.1 2024.09.13)
+<span class="pq">q)([a:`c;b:`d]) xcol ([a:10;b:20])</span>
+— new: xcol with a dictionary (KDB-X 2026.10.23)
+<span class="pq">q)`c xcols ([a:1;b:2;c:3])</span>
+— new: xcols with a dictionary (KDB-X 2026.10.23)
+<span class="pq">q)&quot;J&quot;$([a:&quot;1&quot;;b:&quot;2&quot;])</span>
+<span class="dl">— wrong result when every value was a string (fixed KDB-X 2026.10.02)</span>
+<span class="pq">q)type .Q.lim[]</span>
+<span class="dl">— .Q.lim was not a dictionary before KDB-X 2026.04.10 (NUC)</span></pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ A2 · dictionaries as arguments (4.1 · KDB-X)</span>
+<span class="pc">/ .Q.id sanitises dictionary keys (4.1 2024.09.13)</span>
+<span class="pq">q).Q.id[`b`b1``in!2 3 4 5]</span>
+b  | 2
+b1 | 3
+a  | 4
+in1| 5
+<span class="pc">/ xcol renames and xcols reorders the keys of a dictionary (KDB-X 2026.10.23)</span>
+<span class="pq">q)([a:`c;b:`d]) xcol ([a:10;b:20])</span>
+c| 10
+d| 20
+<span class="pq">q)`c xcols ([a:1;b:2;c:3])</span>
+c| 3
+a| 1
+b| 2
+<span class="pc">/ casting a dictionary whose values are all strings (fixed KDB-X 2026.10.02)</span>
+<span class="pq">q)&quot;J&quot;$([a:&quot;1&quot;;b:&quot;2&quot;])</span>
+<span class="dl">a| 1</span>
+<span class="dl">b| 2</span>
+<span class="pc">/ settings that used to be lists or flags are now dictionaries</span>
+<span class="pq">q)type .Q.lim[]</span>
+<span class="dl">99h</span></pre></div></div><details class="labsrc"><summary>Show labs/a2-dict-arguments.q</summary><div class="code"><pre>/ A2 · dictionaries as arguments (4.1 · KDB-X)
+/ .Q.id sanitises dictionary keys (4.1 2024.09.13)
+.Q.id[`b`b1``in!2 3 4 5]
+/ xcol renames and xcols reorders the keys of a dictionary (KDB-X 2026.10.23)
+([a:`c;b:`d]) xcol ([a:10;b:20])
+`c xcols ([a:1;b:2;c:3])
+/ casting a dictionary whose values are all strings (fixed KDB-X 2026.10.02)
+&quot;J&quot;$([a:&quot;1&quot;;b:&quot;2&quot;])
+/ settings that used to be lists or flags are now dictionaries
+type .Q.lim[]</pre></div></details></div>
+  </div>
+</section>
+
+<!-- ───────────── PATTERNS ───────────── -->
+<section class="part annot" id="patterns">
+  <h2>Patterns</h2>
+  <p class="lead">From 4.1, the left side of <code>:</code> can be a <b>pattern</b>: a list, a dictionary or a table of smaller patterns, any of which can be a name, a constant, a type check or a filter function.<span class="mnote"><b>Destructuring.</b> The name other languages give to taking a value apart on assignment. Python's <code>a, b = 1, 2</code> is the list case; q adds dictionaries, tables, types and filters.</span> The whole value is checked before anything is assigned, which is the property everything else in this section relies on: <b>a failed match changes nothing</b>.</p>
+
+  <figure id="fig-pattern">
+    <div class="fig">
+<svg viewBox="0 0 980 330" role="img" aria-label="The anatomy of one pattern assignment. The pattern on the left, a list, contains five parts: a name with a type check, a dictionary pattern that matches one key, a filter function that adds ten, an empty item that matches anything, and a constant that must match exactly. Step one checks the whole value against the pattern: a wrong type signals type, a wrong constant signals match, a wrong length signals length. Only if every part matches does step two run the filters and assign the names. The expression returns the whole value, filters included.">
+  <defs><marker id="pa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+  <text x="40" y="28" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--muted)" letter-spacing=".06em">ONE ASSIGNMENT, FIVE KINDS OF PATTERN</text>
+  <g font-family="JetBrains Mono,monospace" font-size="17" text-anchor="middle">
+    <text x="60" y="78" fill="var(--muted)">(</text>
+    <rect x="72" y="54" width="104" height="34" rx="4" fill="var(--s0-bg)" stroke="var(--s0)"/><text x="124" y="77" fill="var(--s0)">sym:`s</text>
+    <text x="184" y="78" fill="var(--muted)">;</text>
+    <rect x="196" y="54" width="164" height="34" rx="4" fill="var(--s1-bg)" stroke="var(--s1)"/><text x="278" y="77" fill="var(--s1)">([px:p:`f])</text>
+    <text x="368" y="78" fill="var(--muted)">;</text>
+    <rect x="380" y="54" width="104" height="34" rx="4" fill="var(--code-bg)" stroke="var(--sig)"/><text x="432" y="77" fill="var(--sig)">n:10+</text>
+    <text x="492" y="78" fill="var(--muted)">;</text>
+    <rect x="504" y="54" width="34" height="34" rx="4" fill="var(--code-bg)" stroke="var(--line)" stroke-dasharray="3 3"/>
+    <text x="546" y="78" fill="var(--muted)">;</text>
+    <rect x="558" y="54" width="56" height="34" rx="4" fill="var(--code-bg)" stroke="var(--sh)"/><text x="586" y="77" fill="var(--sh)">1b</text>
+    <text x="626" y="78" fill="var(--muted)">):</text>
+    <text x="760" y="78" fill="var(--fg)" font-size="15">(`AAPL;d;5;x;1b)</text>
+  </g>
+  <g font-family="Schibsted Grotesk,sans-serif" font-size="11" text-anchor="middle">
+    <text x="124" y="108" fill="var(--s0)" font-weight="600">name + type check</text><text x="124" y="122" fill="var(--muted)">an atom of type s</text>
+    <text x="278" y="108" fill="var(--s1)" font-weight="600">dictionary pattern</text><text x="278" y="122" fill="var(--muted)">by key; others ignored</text>
+    <text x="432" y="108" fill="var(--sig)" font-weight="600">filter function</text><text x="432" y="122" fill="var(--muted)">10+ applied, then n</text>
+    <text x="521" y="108" fill="var(--muted)" font-weight="600">null</text><text x="521" y="122" fill="var(--muted)">anything</text>
+    <text x="586" y="108" fill="var(--sh)" font-weight="600">constant</text><text x="586" y="122" fill="var(--muted)">must ~</text>
+  </g>
+  <rect x="40" y="150" width="440" height="150" rx="6" fill="var(--sheet)" stroke="var(--line)"/>
+  <text x="58" y="174" font-family="Schibsted Grotesk,sans-serif" font-size="13" font-weight="600" fill="var(--fg)">1 · check the whole value</text>
+  <g font-family="Schibsted Grotesk,sans-serif" font-size="11.5" fill="var(--fg)">
+    <text x="58" y="200">a wrong type</text><text x="250" y="200" font-family="JetBrains Mono,monospace" fill="var(--bad)">'type</text>
+    <text x="58" y="222">a constant that does not ~</text><text x="250" y="222" font-family="JetBrains Mono,monospace" fill="var(--bad)">'match</text>
+    <text x="58" y="244">a list of the wrong length</text><text x="250" y="244" font-family="JetBrains Mono,monospace" fill="var(--bad)">'length</text>
+    <text x="58" y="266">a filter that signals</text><text x="250" y="266" font-family="JetBrains Mono,monospace" fill="var(--bad)">its own error</text>
+    <text x="58" y="288" fill="var(--muted)">any of these: nothing is assigned</text>
+  </g>
+  <path d="M480 225 H540" stroke="currentColor" stroke-width="1.2" marker-end="url(#pa)"/>
+  <text x="510" y="216" text-anchor="middle" font-family="Schibsted Grotesk,sans-serif" font-size="10.5" fill="var(--muted)">all pass</text>
+  <rect x="548" y="150" width="392" height="150" rx="6" fill="var(--ok-bg)" stroke="var(--ok)"/>
+  <text x="566" y="174" font-family="Schibsted Grotesk,sans-serif" font-size="13" font-weight="600" fill="var(--ok)">2 · run the filters, then assign</text>
+  <g font-family="JetBrains Mono,monospace" font-size="12" fill="var(--fg)">
+    <text x="566" y="202">sym → `AAPL      p → d`px</text>
+    <text x="566" y="224">n   → 15</text>
+  </g>
+  <text x="566" y="256" font-family="Schibsted Grotesk,sans-serif" font-size="11.5" fill="var(--fg)">the expression returns the whole value,</text>
+  <text x="566" y="272" font-family="Schibsted Grotesk,sans-serif" font-size="11.5" fill="var(--fg)">filters included: <tspan font-family="JetBrains Mono,monospace">(`AAPL;d;15;x;1b)</tspan></text>
+</svg>
+    </div>
+    <figcaption><b>Anatomy of a pattern.</b> Every kind of pattern in one assignment. Matching is all-or-nothing: q checks the whole value first, and assigns only when every part fits, so a pattern can guard a variable the way a type guards a column. The same patterns go in a parameter list, where they guard a function.</figcaption>
+  </figure>
+
+  <div class="lab lab3" id="lab-b1">
+    <div class="notes">
+      <h3><span class="n">B1</span>Destructuring</h3>
+      <div class="vtags"><span class="tag v41">4.1</span></div>
+      <p>A list pattern takes a list apart by position, a dictionary pattern by key, a table pattern by column. An empty item matches anything; a constant must match exactly, and is how a pattern says “only if this is a fill”.</p>
+      <p>Watch <code>y</code>: it was <code>`untouched</code> before the failed match and is still <code>`untouched</code> after it. That is the guarantee.</p>
+      <p class="notice">Only <code>!</code> and <code>flip</code> may appear as operators in a pattern, because they are the two that can be undone: <code>(m!n):d</code> takes a dictionary apart into keys and values.</p>
+    </div>
+    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Before · KX release notes</b><span>documented, not run</span></div><pre><span class="pc">/ Pattern matching, type checks, filter functions and the pattern</span>
+<span class="pc">/ conditional are new in 4.1 (Changes in 4.1, &quot;Pattern matching&quot;;</span>
+<span class="pc">/ release notes 2024.02.02). Before 4.1 none of these lines parse as shown.</span></pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ B1 · destructuring assignment (4.1)</span>
+<span class="pc">/ a list pattern</span>
+<span class="pq">q)(b;c):(2;3)</span>
+<span class="pq">q)b</span>
+2
+<span class="pq">q)c</span>
+3
+<span class="pq">q)(b;c):2 3 4</span>
+<span class="er">&#x27;length</span>
+<span class="pc">/ an empty item matches anything; a constant must match exactly</span>
+<span class="pq">q)(1b;;x):(1b;`anything;1 2 3)</span>
+<span class="pq">q)x</span>
+1 2 3
+<span class="pc">/ a failed match assigns nothing at all</span>
+<span class="pq">q)y:`untouched</span>
+<span class="pq">q)(1b;y):(0b;3 2 1)</span>
+<span class="er">&#x27;match</span>
+<span class="pq">q)y</span>
+`untouched
+<span class="pc">/ dictionary patterns match by key; other keys are ignored</span>
+<span class="pq">q)([four:d]):`one`two`three`four`five!1 2 3 4 5</span>
+<span class="pq">q)d</span>
+4
+<span class="pq">q)([low:l;high:h]):`low`high!42 98</span>
+<span class="pq">q)l,h</span>
+42 98
+<span class="pc">/ a table pattern matches by column</span>
+<span class="pq">q)([]x2:e):([]1 2;3 4;5 6)</span>
+<span class="pq">q)e</span>
+5 6
+<span class="pc">/ ! and flip are the only operators allowed in a pattern</span>
+<span class="pq">q)(m!n):1 2!&quot;ab&quot;</span>
+<span class="pq">q)n</span>
+&quot;ab&quot;
+<span class="pq">q)(flip([px;sz])):([]px:1 2;sz:3 4)</span>
+<span class="pq">q)sz</span>
+3 4
+<span class="pc">/ assign into one index</span>
+<span class="pq">q)v:1 2 3</span>
+<span class="pq">q)(v[1]):40</span>
+<span class="pq">q)v</span>
+1 40 3
+<span class="pc">/ the match returns the whole value, filters included</span>
+<span class="pq">q)a:(r;:1+):1 2</span>
+<span class="pq">q)a</span>
+1 3
+<span class="pq">q)r</span>
+1</pre></div></div><details class="labsrc"><summary>Show labs/b1-patterns.q</summary><div class="code"><pre>/ B1 · destructuring assignment (4.1)
+/ a list pattern
+(b;c):(2;3)
+b
+c
+(b;c):2 3 4
+/ an empty item matches anything; a constant must match exactly
+(1b;;x):(1b;`anything;1 2 3)
+x
+/ a failed match assigns nothing at all
+y:`untouched
+(1b;y):(0b;3 2 1)
+y
+/ dictionary patterns match by key; other keys are ignored
+([four:d]):`one`two`three`four`five!1 2 3 4 5
+d
+([low:l;high:h]):`low`high!42 98
+l,h
+/ a table pattern matches by column
+([]x2:e):([]1 2;3 4;5 6)
+e
+/ ! and flip are the only operators allowed in a pattern
+(m!n):1 2!&quot;ab&quot;
+n
+(flip([px;sz])):([]px:1 2;sz:3 4)
+sz
+/ assign into one index
+v:1 2 3
+(v[1]):40
+v
+/ the match returns the whole value, filters included
+a:(r;:1+):1 2
+a
+r</pre></div></details></div>
+  </div>
+
+  <div class="lab lab3" id="lab-b2">
+    <div class="notes">
+      <h3><span class="n">B2</span>Types &amp; Filters</h3>
+      <div class="vtags"><span class="tag v41">4.1</span></div>
+      <p><code>name:`s</code> checks a type: lower case for an atom, upper case for a list. A <b>filter function</b>, <code>x:f</code>, is applied to the value first and the result is what gets matched and assigned, so a filter can validate (<code>tempCheck</code> signals), convert (<code>10+</code>), or both. <code>chkVals</code> does both and changes the type on the way: <code>sumVals</code> is called with a string and its body sees a list of longs, or never runs at all.</p>
+      <p>In a parameter list the same patterns guard a function: <code>fluxCapacitor</code> refuses a non-float speed before its body runs, and <code>{[x;]x}</code> marks the second argument as unused.</p>
+      <p class="warn">The trap is the last three lines. Inside a dictionary pattern, <code>k:`s</code> is the <i>constant</i> <code>`s</code>, matched against the value; the type check needs a name in front, <code>k:k:`s</code>. KX's own reference spells this out because everyone gets it wrong once.</p>
+    </div>
+    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Before · KX release notes</b><span>documented, not run</span></div><pre><span class="pc">/ Pattern matching, type checks, filter functions and the pattern</span>
+<span class="pc">/ conditional are new in 4.1 (Changes in 4.1, &quot;Pattern matching&quot;;</span>
+<span class="pc">/ release notes 2024.02.02). Before 4.1 none of these lines parse as shown.</span></pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ B2 · type checks and filter functions (4.1)</span>
+<span class="pc">/ a type check: lower case for an atom, upper case for a list</span>
+<span class="pq">q)(name:`s;age:`h):(`homer;38h)</span>
+<span class="pq">q)(name:`s;age:`h):(`marge;36.5)</span>
+<span class="er">&#x27;type</span>
+<span class="pq">q)(:`f):3f</span>
+<span class="pq">q)(:`f):3e</span>
+<span class="er">&#x27;type</span>
+<span class="pc">/ patterns in a parameter list</span>
+<span class="pq">q)fluxCapacitor:{[(src:`j;dst:`j);speed:`f]$[speed&lt;88;src;dst]}</span>
+<span class="pq">q)fluxCapacitor[1955 1985]87.9</span>
+1955
+<span class="pq">q)fluxCapacitor[1955 1985]88</span>
+<span class="er">&#x27;type</span>
+<span class="pq">q)fluxCapacitor[1955 1985]88.1</span>
+1985
+<span class="pc">/ a null pattern marks an unused parameter</span>
+<span class="pq">q)g:{[x;]x}</span>
+<span class="pq">q)g[3;4]</span>
+3
+<span class="pc">/ a filter function runs before the assignment, and can refuse it</span>
+<span class="pq">q)tempCheck:{$[x&lt;0;&#x27;&quot;too cold&quot;;x&gt;40;&#x27;&quot;too hot&quot;;x]}</span>
+<span class="pq">q)c2f:{[x:tempCheck]32+1.8*x}</span>
+<span class="pq">q)c2f 20</span>
+68f
+<span class="pq">q)c2f -4.5</span>
+<span class="er">&#x27;too cold</span>
+<span class="pc">/ or transform the value on the way in</span>
+<span class="pq">q)(a;b:10+;c:100+):1 2 3</span>
+<span class="pq">q)a,b,c</span>
+1 12 103
+<span class="pq">q)addv:{([v:(;:x+;:(x*10)+)]):y}</span>
+<span class="pq">q)addv[10;([k:`hello;v:1 2 3])]</span>
+k| `hello
+v| 1 12 103
+<span class="pc">/ the trap: inside a dictionary pattern, k:`s is a constant, not a type check</span>
+<span class="pq">q)([k:k:`s]):([k:`hello])</span>
+<span class="pq">q)([k:`s]):([k:`hello])</span>
+<span class="er">&#x27;match</span>
+<span class="pq">q)([k:`s]):([k:`s])</span></pre></div></div><details class="labsrc"><summary>Show labs/b2-types-filters.q</summary><div class="code"><pre>/ B2 · type checks and filter functions (4.1)
+/ a type check: lower case for an atom, upper case for a list
+(name:`s;age:`h):(`homer;38h)
+(name:`s;age:`h):(`marge;36.5)
+(:`f):3f
+(:`f):3e
+/ patterns in a parameter list
+fluxCapacitor:{[(src:`j;dst:`j);speed:`f]$[speed&lt;88;src;dst]}
+fluxCapacitor[1955 1985]87.9
+fluxCapacitor[1955 1985]88
+fluxCapacitor[1955 1985]88.1
+/ a null pattern marks an unused parameter
+g:{[x;]x}
+g[3;4]
+/ a filter function runs before the assignment, and can refuse it
+tempCheck:{$[x&lt;0;&#x27;&quot;too cold&quot;;x&gt;40;&#x27;&quot;too hot&quot;;x]}
+c2f:{[x:tempCheck]32+1.8*x}
+c2f 20
+c2f -4.5
+/ or transform the value on the way in
+(a;b:10+;c:100+):1 2 3
+a,b,c
+addv:{([v:(;:x+;:(x*10)+)]):y}
+addv[10;([k:`hello;v:1 2 3])]
+/ the trap: inside a dictionary pattern, k:`s is a constant, not a type check
+([k:k:`s]):([k:`hello])
+([k:`s]):([k:`hello])
+([k:`s]):([k:`s])</pre></div></details></div>
+  </div>
+
+  <div class="lab lab3" id="lab-b3">
+    <div class="notes">
+      <h3><span class="n">B3</span>The Pattern Conditional</h3>
+      <div class="vtags"><span class="tag v41">4.1</span></div>
+      <p><code>:[v;p1;r1;p2;r2;…;default]</code> matches <code>v</code> against each pattern in turn and returns the result beside the first that fits. Only that result is evaluated.</p>
+      <p>Where <code>$[…]</code> asks a question of a value, <code>:[…]</code> asks what <i>shape</i> it has. <code>route</code> sends a message by the keys it carries, which is the dispatch every feed handler writes by hand.</p>
+    </div>
+    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Before · KX release notes</b><span>documented, not run</span></div><pre><span class="pc">/ Pattern matching, type checks, filter functions and the pattern</span>
+<span class="pc">/ conditional are new in 4.1 (Changes in 4.1, &quot;Pattern matching&quot;;</span>
+<span class="pc">/ release notes 2024.02.02). Before 4.1 none of these lines parse as shown.</span></pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ B3 · the pattern conditional :[v;p1;r1;…;rd] (4.1)</span>
+<span class="pq">q)a: :[1i;r:`f;&quot;float&quot;;r:`i;&quot;int&quot;;&quot;other&quot;]</span>
+<span class="pq">q)a</span>
+&quot;int&quot;
+<span class="pc">/ the first pattern that matches wins; later branches are never evaluated</span>
+<span class="pq">q)kind:{:[x;r:`s;&quot;sym&quot;;r:`j;&quot;long&quot;;r:`F;&quot;floats&quot;;&quot;other&quot;]}</span>
+<span class="pq">q)kind each (`a;1;1 2f;&quot;x&quot;)</span>
+&quot;sym&quot;
+&quot;long&quot;
+&quot;floats&quot;
+&quot;other&quot;
+<span class="pc">/ a dictionary pattern as a branch: route a message by its shape</span>
+<span class="pq">q)route:{:[x;([px:p:`f;sz:s:`j]);`trade;([bid:b:`f;ask:k:`f]);`quote;`unknown]}</span>
+<span class="pq">q)route ([px:182.4;sz:100])</span>
+`trade
+<span class="pq">q)route ([bid:182.4;ask:182.42])</span>
+`quote
+<span class="pq">q)route ([foo:1])</span>
+`unknown</pre></div></div><details class="labsrc"><summary>Show labs/b3-match-conditional.q</summary><div class="code"><pre>/ B3 · the pattern conditional :[v;p1;r1;…;rd] (4.1)
+a: :[1i;r:`f;&quot;float&quot;;r:`i;&quot;int&quot;;&quot;other&quot;]
+a
+/ the first pattern that matches wins; later branches are never evaluated
+kind:{:[x;r:`s;&quot;sym&quot;;r:`j;&quot;long&quot;;r:`F;&quot;floats&quot;;&quot;other&quot;]}
+kind each (`a;1;1 2f;&quot;x&quot;)
+/ a dictionary pattern as a branch: route a message by its shape
+route:{:[x;([px:p:`f;sz:s:`j]);`trade;([bid:b:`f;ask:k:`f]);`quote;`unknown]}
+route ([px:182.4;sz:100])
+route ([bid:182.4;ask:182.42])
+route ([foo:1])</pre></div></details></div>
+  </div>
+
+  <div class="lab lab3" id="lab-b4">
+    <div class="notes">
+      <h3><span class="n">B4</span>Caught at Parse Time</h3>
+      <div class="vtags"><span class="tag v41">4.1</span><span class="tag vNUC">NUC</span></div>
+      <p>Making the left side of <code>:</code> a grammar meant deciding what it may <i>not</i> contain. Each line here was accepted before, or did something surprising; now each is refused when the code is read, not when it runs, which means a script with one of them in a function that is never called still fails to load.</p>
+      <p class="warn"><code>([]a::e)</code> used to amend a global <code>a</code> while building a column; it is now <code class="errtag">'parse</code>. <code>do:1</code> and an assignment to <code>if[…]</code> are <code class="errtag">'assign</code> (4.1 2025.11.25). <code>{x}[;1]</code>, a projection with more arguments than the function takes, is <code class="errtag">'rank</code>.</p>
+      <p class="notice"><code>exit:1</code> is also <code class="errtag">'assign</code> now, but it is left out of the lab: on a version that accepts it, the runner could no longer exit.</p>
+    </div>
+    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Before · KX release notes</b><span>documented, not run</span></div><pre><span class="pc">/ What each line did before 4.1, per the release notes.</span>
+<span class="pq">q)([]a::e)</span>
+<span class="dl">— amended the global a, with an implicit column name (NUC, 4.1 2024.02.02)</span>
+<span class="pq">q)f:{[x+y]x}</span>
+<span class="dl">— accepted; now &#x27;nyi when compiled (4.1 2024.03.12)</span>
+<span class="pq">q)():1</span>
+<span class="dl">— accepted; now &#x27;match (4.1 2024.03.12)</span>
+<span class="pq">q)do:1</span>
+<span class="dl">— accepted; now &#x27;assign at parse time (NUC, 4.1 2025.11.25)</span>
+<span class="pq">q){ if[a;1 2]:3 4 }</span>
+<span class="dl">— accepted; now &#x27;assign at parse time (NUC, 4.1 2025.11.25)</span>
+<span class="pq">q){x}[;1]</span>
+<span class="dl">— a projection; now &#x27;rank (4.1 2021.12.07)</span></pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ B4 · mistakes that are now caught when the code is read (4.1)</span>
+<span class="pc">/ each line below was accepted, or did something odd, before 4.1</span>
+<span class="pq">q)([]a::e)</span>
+<span class="er dl">&#x27;parse</span>
+<span class="pq">q)f:{[x+y]x}</span>
+<span class="er dl">&#x27;nyi</span>
+<span class="pq">q)():1</span>
+<span class="er dl">&#x27;match</span>
+<span class="pq">q)do:1</span>
+<span class="er dl">&#x27;assign</span>
+<span class="pq">q){ if[a;1 2]:3 4 }</span>
+<span class="er dl">&#x27;assign</span>
+<span class="pq">q){x}[;1]</span>
+<span class="er dl">&#x27;rank</span></pre></div></div><details class="labsrc"><summary>Show labs/b4-parse-guards.q</summary><div class="code"><pre>/ B4 · mistakes that are now caught when the code is read (4.1)
+/ each line below was accepted, or did something odd, before 4.1
+([]a::e)
+f:{[x+y]x}
+():1
+do:1
+{ if[a;1 2]:3 4 }
+{x}[;1]</pre></div></details></div>
+  </div>
+</section>
+
+<!-- ───────────── SEMANTICS ───────────── -->
+<section class="part" id="semantics">
+  <h2>Stricter Semantics</h2>
+  <p class="lead">These are not new grammar but old grammar with new answers. They matter more than the new features, because a feature you do not use cannot hurt you, and a changed result in code you already run can.</p>
+
+  <div class="lab lab3" id="lab-c1">
+    <div class="notes">
+      <h3><span class="n">C1</span>qSQL Tightened</h3>
+      <div class="vtags"><span class="tag v40">4.0</span><span class="tag v41">4.1</span><span class="tag vNUC">NUC</span></div>
+      <p>4.0 made a column named like a group, <code>select a,b by a</code>, a parse error (<code>dup names for cols/groups</code>) instead of quietly renaming it; a column repeated among the columns is still renamed, as <code>a1</code>. It also made aggregates over a <code>by</code> agree for atoms, and made <code>lj</code> insist on a keyed table on the right.</p>
+      <p>4.1 made <code>update … by</code> on a <i>dictionary</i> an error rather than ignoring the <code>by</code>, and fixed a scoping bug from 2.6: <code>value</code> inside <code>select</code> or <code>exec</code> now reads globals, so the lambda's local <code>a:1</code> is no longer seen.</p>
+      <p class="warn">The <code>value</code> change is the dangerous one: no error, a different number. Search your code for <code>value"</code> inside qSQL.</p>
+    </div>
+    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Before · KX release notes</b><span>documented, not run</span></div><pre><span class="pc">/ What each line did before the change, per the release notes.</span>
+<span class="pq">q)select a,b by a from t</span>
+<span class="dl">— a column named like a group was renamed automatically; now a parse error (NUC, 4.0 2019.11.04)</span>
+<span class="pq">q)first max select count 1b by x1 from ([]1 2 3;3 3 3)</span>
+<span class="dl">3</span>
+<span class="pq">q)t lj ([]c:`x`y;d:1 2)</span>
+<span class="dl">— the right argument was not checked for a key (NUC, 4.0 2019.11.04)</span>
+<span class="pq">q)update a by b from dd</span>
+<span class="dl">— the by clause was ignored (NUC, 4.1 2024.04.29)</span>
+<span class="pq">q){a:1;exec value&quot;2*a&quot; from ([]``)}[]</span>
+<span class="dl">2</span></pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ C1 · qSQL tightened (4.0 · 4.1)</span>
+<span class="pq">q)t:([]a:1 2 3;b:10 20 30;c:`x`y`x)</span>
+<span class="pc">/ a column named like a group is a parse error (4.0); a repeated column is renamed</span>
+<span class="pq">q)select a,b by a from t</span>
+<span class="er dl">&#x27;dup names for cols/groups a</span>
+<span class="pq">q)select a,b by g:a from t</span>
+g| a b 
+-| ----
+1| 1 10
+2| 2 20
+3| 3 30
+<span class="pq">q)select a,a by c from t</span>
+c| a   a1 
+-| -------
+x| 1 3 1 3
+y| ,2  ,2 
+<span class="pc">/ aggregates over a by clause agree for atoms (4.0)</span>
+<span class="pq">q)first max select count 1b by x1 from ([]1 2 3;3 3 3)</span>
+<span class="dl">1</span>
+<span class="pc">/ lj needs a keyed table on the right (4.0)</span>
+<span class="pq">q)t lj ([]c:`x`y;d:1 2)</span>
+<span class="er dl">&#x27;type</span>
+<span class="pq">q)t lj ([c:`x`y]d:1 2)</span>
+a b  c d
+--------
+1 10 x 1
+2 20 y 2
+3 30 x 1
+<span class="pc">/ update … by on a dictionary is an error, not ignored (4.1 2024.04.29)</span>
+<span class="pq">q)dd:`a`b!1 2</span>
+<span class="pq">q)update a by b from dd</span>
+<span class="er dl">&#x27;type</span>
+<span class="pc">/ value inside exec reads globals, not the caller&#x27;s locals (4.1)</span>
+<span class="pq">q)a:0</span>
+<span class="pq">q){a:1;exec value&quot;2*a&quot; from ([]``)}[]</span>
+<span class="dl">0</span></pre></div></div><details class="labsrc"><summary>Show labs/c1-qsql-nucs.q</summary><div class="code"><pre>/ C1 · qSQL tightened (4.0 · 4.1)
+t:([]a:1 2 3;b:10 20 30;c:`x`y`x)
+/ a column named like a group is a parse error (4.0); a repeated column is renamed
+select a,b by a from t
+select a,b by g:a from t
+select a,a by c from t
+/ aggregates over a by clause agree for atoms (4.0)
+first max select count 1b by x1 from ([]1 2 3;3 3 3)
+/ lj needs a keyed table on the right (4.0)
+t lj ([]c:`x`y;d:1 2)
+t lj ([c:`x`y]d:1 2)
+/ update … by on a dictionary is an error, not ignored (4.1 2024.04.29)
+dd:`a`b!1 2
+update a by b from dd
+/ value inside exec reads globals, not the caller&#x27;s locals (4.1)
+a:0
+{a:1;exec value&quot;2*a&quot; from ([]``)}[]</pre></div></details></div>
+  </div>
+
+  <div class="lab lab3" id="lab-c2">
+    <div class="notes">
+      <h3><span class="n">C2</span>Numbers, Bytes &amp; Guids</h3>
+      <div class="vtags"><span class="tag v41">4.1</span><span class="tag vX">KDB-X</span><span class="tag vNUC">NUC</span></div>
+      <p>The theme is <b>null, not garbage</b>. A float-to-int conversion out of range, including <code>3i div 0i</code>, now gives <code>0Ni</code> on every platform (ARM used to give <code>0i</code>); a string-to-time cast that overflows gives null instead of a wrapped value; short parsing no longer clamps to <code>0Wh</code>.</p>
+      <p>Bytes became first-class text: <code>vs</code> and <code>sv</code> take byte vectors, <code>ss</code> searches them, and <code>.Q.atob</code> decodes base64. Guids gained an order, so <code>min</code>, <code>max</code> and <code>asc</code> work, with <code>0Ng</code> smallest.</p>
+      <p class="notice">Two long-standing wrong answers were fixed too: <code>x*/y</code> on bytes or shorts (wrong since 3.3) and the seed of <code>&amp;/</code> on a sorted list (ignored since 3.1). If a result moves in the KDB-X column here, it was wrong before.</p>
+    </div>
+    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Before · KX release notes</b><span>documented, not run</span></div><pre><span class="pc">/ What each line did before the change, per the release notes.</span>
+<span class="pq">q)3i div 0i</span>
+<span class="dl">— 0i on ARM, 0Ni elsewhere (NUC, KDB-X 2026.10.15)</span>
+<span class="pq">q)&quot;U&quot;$&quot;71582789:00&quot;</span>
+<span class="dl">— a wrapped value, not null (KDB-X 2026.10.23)</span>
+<span class="pq">q)&quot;N&quot;$&quot;106751D23:47:16.9&quot;</span>
+<span class="dl">— a wrapped value, not null (4.1 2026.10.23)</span>
+<span class="pq">q)&quot;H&quot;$&quot;99999&quot;</span>
+<span class="dl">0Wh</span>
+<span class="pq">q)0&amp;/`s#1 2 3</span>
+<span class="dl">— the seed 0 was ignored for a sorted list (wrong since 3.1; fixed 2026.05.01)</span>
+<span class="pq">q)0x01*/0x01020304</span>
+<span class="dl">— a wrong result (wrong since 3.3; fixed 2026.05.01)</span>
+<span class="pq">q)0x0203 sv 0x0203 vs &quot;x&quot;$til 6</span>
+— new: vs and sv on byte vectors (4.1 2021.09.03)
+<span class="pq">q)0x01020304 ss 0x0203</span>
+— new: ss on bytes (KDB-X 2026.04.01)
+<span class="pq">q)10h$.Q.atob &quot;aGVsbG8=&quot;</span>
+— new: .Q.atob (4.1 2025.11.25)
+<span class="pq">q)(min g)~first asc g</span>
+<span class="dl">— not supported: min, max, &amp; and | on guids arrived in KDB-X 2026.10.15</span>
+<span class="pq">q)max 0Ng,g</span>
+<span class="dl">— not supported before KDB-X 2026.10.15</span>
+<span class="pq">q)type -16!til 3</span>
+<span class="dl">-6h</span></pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ C2 · numbers, casts, bytes and guids (4.x · KDB-X)</span>
+<span class="pc">/ out of range or divide by zero gives null on every platform (KDB-X 2026.10.15)</span>
+<span class="pq">q)3i div 0i</span>
+<span class="dl">0Ni</span>
+<span class="pc">/ overflowing string-to-time casts give null (2026.10.23, also 4.1)</span>
+<span class="pq">q)&quot;U&quot;$&quot;71582789:00&quot;</span>
+<span class="dl">0Nu</span>
+<span class="pq">q)&quot;N&quot;$&quot;106751D23:47:16.9&quot;</span>
+<span class="dl">0Nn</span>
+<span class="pc">/ short parsing no longer clamps (4.1 2021)</span>
+<span class="pq">q)&quot;H&quot;$&quot;99999&quot;</span>
+<span class="dl">0Nh</span>
+<span class="pc">/ the seed of a sorted scan is honoured, and */ on bytes is right (2026.05.01)</span>
+<span class="pq">q)0&amp;/`s#1 2 3</span>
+<span class="dl">0</span>
+<span class="pq">q)0x01*/0x01020304</span>
+<span class="dl">24i</span>
+<span class="pc">/ bytes: vs, sv and ss</span>
+<span class="pq">q)0x0203 sv 0x0203 vs &quot;x&quot;$til 6</span>
+0x000102030405
+<span class="pq">q)0x01020304 ss 0x0203</span>
+,1
+<span class="pq">q)10h$.Q.atob &quot;aGVsbG8=&quot;</span>
+&quot;hello&quot;
+<span class="pc">/ guids can be ordered (KDB-X 2026.10.15)</span>
+<span class="pq">q)g:3?0Ng</span>
+<span class="pq">q)(min g)~first asc g</span>
+<span class="dl">1b</span>
+<span class="pq">q)max 0Ng,g</span>
+<span class="dl">8c6b8b64-6815-6084-0a3e-178401251b68</span>
+<span class="pc">/ the reference count is a long (KDB-X 2026.10.02)</span>
+<span class="pq">q)type -16!til 3</span>
+<span class="dl">-7h</span></pre></div></div><details class="labsrc"><summary>Show labs/c2-numbers-guids.q</summary><div class="code"><pre>/ C2 · numbers, casts, bytes and guids (4.x · KDB-X)
+/ out of range or divide by zero gives null on every platform (KDB-X 2026.10.15)
+3i div 0i
+/ overflowing string-to-time casts give null (2026.10.23, also 4.1)
+&quot;U&quot;$&quot;71582789:00&quot;
+&quot;N&quot;$&quot;106751D23:47:16.9&quot;
+/ short parsing no longer clamps (4.1 2021)
+&quot;H&quot;$&quot;99999&quot;
+/ the seed of a sorted scan is honoured, and */ on bytes is right (2026.05.01)
+0&amp;/`s#1 2 3
+0x01*/0x01020304
+/ bytes: vs, sv and ss
+0x0203 sv 0x0203 vs &quot;x&quot;$til 6
+0x01020304 ss 0x0203
+10h$.Q.atob &quot;aGVsbG8=&quot;
+/ guids can be ordered (KDB-X 2026.10.15)
+g:3?0Ng
+(min g)~first asc g
+max 0Ng,g
+/ the reference count is a long (KDB-X 2026.10.02)
+type -16!til 3</pre></div></details></div>
+  </div>
+</section>
+
+<!-- ───────────── NAMES ───────────── -->
+<section class="part annot" id="names">
+  <h2>Names</h2>
+  <p class="lead">A namespace is a dictionary of names hanging off the root: <code>.foo.f</code> is <code>f</code> in <code>.foo</code>. The rule that governs code is about <i>when</i> an unqualified global name is resolved: an unqualified global <q>is bound to the current namespace in effect at the point of the function definition</q>,<span class="mnote"><b>Q for Mortals</b> 4.1, §12, “Fact of Life #4”. The function body does not show which namespace it was bound to; <code>value</code> on the function does.</span> not where it is called from. Modules depend on this rule, and add one exception that catches everyone.</p>
+
+  <figure id="fig-names">
+    <div class="fig">
+<svg viewBox="0 0 980 300" role="img" aria-label="Where a global name is looked up. Three containers: the root, the namespace .foo, and a module's private namespace. A function f defined in .foo reads mult from .foo, even when called from the root, where a different mult exists. A dashed arrow from .foo to the root asks whether a name missing from .foo is found in the root; lab D1 answers it. In the module, a bare name in a function resolves inside the module, but a function name inside a qSQL select is looked up in the caller's namespace, so the module must write .z.m.f.">
+  <defs><marker id="nr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker>
+    <marker id="nrb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--bad)"/></marker></defs>
+  <rect x="30" y="40" width="250" height="220" rx="6" fill="var(--sheet)" stroke="var(--muted)"/>
+  <text x="46" y="64" font-family="Schibsted Grotesk,sans-serif" font-size="13" font-weight="600" fill="var(--muted)">root  <tspan font-family="JetBrains Mono,monospace" font-size="11">`.</tspan></text>
+  <g font-family="JetBrains Mono,monospace" font-size="12" fill="var(--fg)"><text x="46" y="96">mult:4</text><text x="46" y="120">rootOnly:42</text><text x="46" y="160" fill="var(--muted)">q).foo.f 1</text><text x="46" y="180" fill="var(--s0)">3</text></g>
+  <rect x="340" y="40" width="250" height="220" rx="6" fill="var(--s0-bg)" stroke="var(--s0)"/>
+  <text x="356" y="64" font-family="Schibsted Grotesk,sans-serif" font-size="13" font-weight="600" fill="var(--s0)">namespace  <tspan font-family="JetBrains Mono,monospace" font-size="11">.foo</tspan></text>
+  <g font-family="JetBrains Mono,monospace" font-size="12" fill="var(--fg)"><text x="356" y="96">mult:3</text><text x="356" y="120">f:{x*mult}</text><text x="356" y="144">g:{rootOnly}</text></g>
+  <path d="M400 108 C 420 102, 420 96, 404 92" fill="none" stroke="var(--s0)" stroke-width="1.2" marker-end="url(#nr)"/>
+  <text x="440" y="104" font-family="Schibsted Grotesk,sans-serif" font-size="10.5" fill="var(--s0)">bound at definition</text>
+  <path d="M356 150 C 300 190, 220 150, 160 124" fill="none" stroke="var(--sig)" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#nr)"/>
+  <text x="155" y="226" text-anchor="middle" font-family="Schibsted Grotesk,sans-serif" font-size="11" fill="var(--sig)" font-weight="600">fallback to the root?</text>
+  <text x="155" y="242" text-anchor="middle" font-family="Schibsted Grotesk,sans-serif" font-size="10.5" fill="var(--muted)">no, on KDB-X: lab D1</text>
+  <path d="M120 156 C 200 140, 300 132, 352 122" fill="none" stroke="currentColor" stroke-opacity=".5" stroke-width="1" marker-end="url(#nr)"/>
+  <rect x="650" y="40" width="300" height="220" rx="6" fill="var(--s1-bg)" stroke="var(--s1)"/>
+  <text x="666" y="64" font-family="Schibsted Grotesk,sans-serif" font-size="13" font-weight="600" fill="var(--s1)">a module's namespace  <tspan font-family="JetBrains Mono,monospace" font-size="11">.z.M</tspan></text>
+  <g font-family="JetBrains Mono,monospace" font-size="12" fill="var(--fg)"><text x="666" y="96">f:{x+1}</text><text x="666" y="120">g:{f x}</text><text x="666" y="160">h:{select f a from t}</text><text x="666" y="210">h:{select .z.m.f a from t}</text></g>
+  <text x="790" y="120" font-family="Schibsted Grotesk,sans-serif" font-size="10.5" fill="var(--ok)">✓ the module's f</text>
+  <text x="666" y="180" font-family="Schibsted Grotesk,sans-serif" font-size="10.5" fill="var(--bad)">✗ f is looked up in the CALLER's namespace</text>
+  <text x="666" y="230" font-family="Schibsted Grotesk,sans-serif" font-size="10.5" fill="var(--ok)">✓ qualified through .z.m</text>
+</svg>
+    </div>
+    <figcaption><b>Where a name is looked up.</b> A function reads its globals from the namespace it was defined in, so <code>.foo.f</code> returns 3 even when the root has its own <code>mult</code>. A name that namespace lacks is not looked for in the root: on KDB-X, lab D1 shows <code>.foo.g[]</code> failing with <code class="errtag">'rootOnly</code>. Inside a module, bare names are the module's, with one exception the KDB-X docs spell out: in qSQL, a function name is looked up in the caller's namespace, so the module writes <code>.z.m.f</code>.</figcaption>
+  </figure>
+
+  <div class="lab lab3" id="lab-d1">
+    <div class="notes">
+      <h3><span class="n">D1</span>Namespaces</h3>
+      <div class="vtags"><span class="tag v41">4.x</span><span class="tag vX">KDB-X</span></div>
+      <p>Four questions, each one line. Is a global bound when the function is defined? (<code>.foo.f 1</code>.) Is a name the namespace lacks found in the root? (<code>.foo.g[]</code>, defined under <code>\d .foo</code>, against <code>.foo.h[]</code>, defined from the root.) Can <code>\d</code> go two levels deep? Can a namespace be deleted?</p>
+      <p class="notice"><i>Q for Mortals</i> says <code>\d</code> can only go one level down from the root. On KDB-X 5.0 2026.10.23 it goes two: <code>\d .a.b</code> works and <code>\d</code> reports <code>`.a.b</code>. No release note mentions the change.</p>
+      <p class="notice"><code>q.foo)k:{…}</code> defines a function in <code>.foo</code> without leaving the root, the safest way to write one: no <code>\d</code> to forget to undo.</p>
+      <div class="verdict" id="verdict-fallback"><b>The root-fallback question, answered for KDB-X.</b> It is often said that KDB-X stopped finding root names from inside a namespace. On KDB-X there is no fallback: <code>.foo.g</code>, defined under <code>\d .foo</code>, signals <code class="errtag">'rootOnly</code>, while <code>.foo.h</code>, the same body defined from the root, returns <code>42</code>. The name was bound to the namespace the function was written in, and <code>.foo</code> has no <code>rootOnly</code>. Whether that is <i>new</i> is a separate question: no release note lists a change to name lookup, and the behaviour is exactly the definition-time binding <i>Q for Mortals</i> describes for kdb+. The claim most likely confuses this rule with the qSQL rule inside modules. It could not be run on kdb+ 4.x here; one run with a 4.x licence settles it.</div>
+    </div>
+    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Before · KX release notes</b><span>documented, not run</span></div><pre><span class="pc">/ No release note changes how a global name is looked up, so there is no</span>
+<span class="pc">/ documented &quot;before&quot; for the first eight lines. The one new feature:</span>
+<span class="pq">q)delete foo from `</span>
+— new: a top-level namespace can be deleted (KDB-X 2026.10.15)</pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ D1 · where a global name is looked up</span>
+<span class="pq">q)mult:4</span>
+<span class="pq">q)\d .foo</span>
+<span class="pq">q)mult:3</span>
+<span class="pq">q)f:{x*mult}</span>
+<span class="pq">q)\d .</span>
+<span class="pc">/ bound when defined: .foo.f reads .foo.mult, whatever namespace calls it</span>
+<span class="pq">q).foo.f 1</span>
+3
+<span class="pc">/ the open question: a name only the root defines, read from inside .foo</span>
+<span class="pq">q)rootOnly:42</span>
+<span class="pq">q)\d .foo</span>
+<span class="pq">q)g:{rootOnly}</span>
+<span class="pq">q)\d .</span>
+<span class="pq">q).foo.g[]</span>
+<span class="er">&#x27;rootOnly</span>
+<span class="pc">/ the same function written from the root with a qualified name</span>
+<span class="pq">q).foo.h:{rootOnly}</span>
+<span class="pq">q).foo.h[]</span>
+42
+<span class="pc">/ the q.ns) prefix defines a function in a namespace without \d</span>
+<span class="pq">q).foo.mult2:5</span>
+<span class="pq">q)q.foo)k:{x*mult2}</span>
+<span class="pq">q).foo.k 1</span>
+5
+<span class="pc">/ a namespace can hold namespaces; can \d go two levels deep?</span>
+<span class="pq">q).a.b.c:1</span>
+<span class="pq">q)key `.a</span>
+``b
+<span class="pq">q)\d .a.b</span>
+<span class="pq">q)\d</span>
+`.a.b
+<span class="pq">q)\d .</span>
+<span class="pc">/ a whole namespace can be deleted (KDB-X 2026.10.15)</span>
+<span class="pq">q)delete foo from `</span>
+`
+<span class="pq">q)`foo in key `</span>
+0b</pre></div></div><details class="labsrc"><summary>Show labs/d1-namespaces.q</summary><div class="code"><pre>/ D1 · where a global name is looked up
+mult:4
+\d .foo
+mult:3
+f:{x*mult}
+\d .
+/ bound when defined: .foo.f reads .foo.mult, whatever namespace calls it
+.foo.f 1
+/ the open question: a name only the root defines, read from inside .foo
+rootOnly:42
+\d .foo
+g:{rootOnly}
+\d .
+.foo.g[]
+/ the same function written from the root with a qualified name
+.foo.h:{rootOnly}
+.foo.h[]
+/ the q.ns) prefix defines a function in a namespace without \d
+.foo.mult2:5
+q.foo)k:{x*mult2}
+.foo.k 1
+/ a namespace can hold namespaces; can \d go two levels deep?
+.a.b.c:1
+key `.a
+\d .a.b
+\d
+\d .
+/ a whole namespace can be deleted (KDB-X 2026.10.15)
+delete foo from `
+`foo in key `</pre></div></details></div>
+  </div>
+
+  <div class="lab lab3" id="lab-e1">
+    <div class="notes">
+      <h3><span class="n">E1</span>Loading &amp; One-shot IPC</h3>
+      <div class="vtags"><span class="tag v40">4.0</span><span class="tag v41">4.1</span><span class="tag vX">KDB-X</span><span class="tag vNUC">NUC</span></div>
+      <p><code>\l .:inner.q</code> loads <code>inner.q</code> from the folder of the file doing the loading, not from the working directory, so a library can load its own parts wherever it is installed (KDB-X 2026.04.01). Its partner, <code>.Q.rp`:.:path</code>, resolves such a path to a file handle.</p>
+      <p>Since 4.0, a one-shot query can carry a timeout, <code>`::[("host:port";ms);query]</code>, so a probe of a dead process fails in half a second instead of hanging.</p>
+    </div>
+    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Before · KX release notes</b><span>documented, not run</span></div><pre><span class="pc">/ What each line did before the change, per the release notes.</span>
+<span class="pq">q)\l labs/inc/outer.q</span>
+— new: \l .:path is relative to the loading file (KDB-X 2026.04.01)
+<span class="pq">q)`::[(&quot;:localhost:5999&quot;;500);&quot;1+1&quot;]</span>
+— new: a one-shot query with a timeout (4.0 2020.03.09)
+<span class="pq">q)type .z.H</span>
+— new: .z.H (4.0 2020.06.01); a sorted list since 4.1 2024.07.08</pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ E1 · loading relative to a file (KDB-X) and one-shot queries with a timeout (4.0)</span>
+<span class="pc">/ labs/inc/outer.q loads inner.q from its own folder with \l .:inner.q</span>
+<span class="pq">q)\l labs/inc/outer.q</span>
+<span class="pq">q)outerSaw</span>
+&quot;inner.q, found next to outer.q&quot;
+<span class="pc">/ a one-shot query with a 500 ms timeout, to a port nobody listens on</span>
+<span class="pq">q)`::[(&quot;:localhost:5999&quot;;500);&quot;1+1&quot;]</span>
+<span class="er">&#x27;hop. OS reports: Connection refused</span>
+<span class="pc">/ handles are now a sorted list (4.1 2024.07.08)</span>
+<span class="pq">q)type .z.H</span>
+6h</pre></div></div><details class="labsrc"><summary>Show labs/e1-loading-ipc.q</summary><div class="code"><pre>/ E1 · loading relative to a file (KDB-X) and one-shot queries with a timeout (4.0)
+/ labs/inc/outer.q loads inner.q from its own folder with \l .:inner.q
+\l labs/inc/outer.q
+outerSaw
+/ a one-shot query with a 500 ms timeout, to a port nobody listens on
+`::[(&quot;:localhost:5999&quot;;500);&quot;1+1&quot;]
+/ handles are now a sorted list (4.1 2024.07.08)
+type .z.H</pre></div></details></div>
+  </div>
+</section>
+
+<!-- ───────────── MODULES ───────────── -->
+<section class="part annot" id="modules">
+  <h2>Modules</h2>
+  <p class="lead">A script loaded with <code>\l</code> puts its names wherever it likes, usually the root or one namespace it assumes nobody else uses. A <b>module</b> runs in a namespace of its own, decides what to show through a variable called <code>export</code>, and is loaded with <code>use</code>, which returns that export for the caller to name: <code>os:use`kx.os</code>.<span class="mnote"><b>kdb+ 4.x.</b> Modules are KDB-X only: on kdb+ 4.1, <code>use</code> is not a built-in, so <code>use`kx.os</code> fails as an undefined name. KX says its open-source modules are incompatible with earlier versions of kdb+. The labs in this section therefore have one column.</span> Modules load once and are cached; the second <code>use</code> returns the same export.</p>
+  <p>Three things follow from the namespace being private. A module cannot define a name q reserves (<code>log</code>, <code>load</code>, <code>parse</code>, <code>use</code>) as a bare name, so it defines <code>.z.m.log</code> instead; <code>.z.m</code> is the module's own namespace and <code>.z.M</code> its name as a symbol. A function that needs to amend the module's own state by name writes <code>.z.M.w</code>, not a hard-coded <code>`.u.w</code>. And submodules are named relative to the file that uses them: <code>`.child</code>, <code>`..sibling</code>, <code>`...parentSibling</code>.</p>
+
+  <figure id="fig-module">
+    <div class="fig">
+<svg viewBox="0 0 980 310" role="img" aria-label="Anatomy of a module. On the left, the search order for use of tick.cfg in each search-path directory: tick/cfg.k, cfg.q, cfg.k_, cfg.q_, a platform shared library, then tick/cfg/init.k, init.q and so on; the first match wins. In the middle, this repository's mod directory holds tick/cfg/init.q, tick/check/init.q and tick/pubsub/init.q, each with a test folder. On the right, init.q defines private functions and an export dictionary; use returns the export, and the caller names it cfg and calls cfg.load.">
+  <defs><marker id="ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--s1)"/></marker></defs>
+  <text x="30" y="26" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--muted)" letter-spacing=".06em">1 · WHERE use LOOKS</text>
+  <rect x="30" y="38" width="250" height="250" rx="6" fill="var(--code-bg)" stroke="var(--line)"/>
+  <g font-family="JetBrains Mono,monospace" font-size="11" fill="var(--fg)">
+    <text x="44" y="60" fill="var(--muted)">for each dir in QPATH, .Q.m.SP</text>
+    <text x="44" y="82">dir/tick/cfg.k</text><text x="44" y="100">dir/tick/cfg.q</text><text x="44" y="118">dir/tick/cfg.k_</text><text x="44" y="136">dir/tick/cfg.q_</text><text x="44" y="154">dir/tick/cfg.$PLATFORM.so</text>
+    <text x="44" y="178" fill="var(--s1)">dir/tick/cfg/init.k</text><text x="44" y="196" fill="var(--s1)" font-weight="600">dir/tick/cfg/init.q  ←</text><text x="44" y="214">dir/tick/cfg/init.k_ …</text>
+    <text x="44" y="246" fill="var(--muted)">first match wins; each dir is</text><text x="44" y="262" fill="var(--muted)">searched fully before the next</text>
+  </g>
+  <text x="330" y="26" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--muted)" letter-spacing=".06em">2 · THIS REPOSITORY</text>
+  <rect x="330" y="38" width="250" height="250" rx="6" fill="var(--sheet)" stroke="var(--line)"/>
+  <g font-family="JetBrains Mono,monospace" font-size="11.5" fill="var(--fg)">
+    <text x="344" y="62">mod/</text><text x="344" y="82">└─ tick/</text>
+    <text x="344" y="104">   ├─ cfg/</text><text x="344" y="122" fill="var(--s1)">   │  ├─ init.q</text><text x="344" y="140" fill="var(--muted)">   │  └─ test/</text>
+    <text x="344" y="162">   ├─ check/</text><text x="344" y="180" fill="var(--s1)">   │  ├─ init.q</text><text x="344" y="198" fill="var(--muted)">   │  └─ test/</text>
+    <text x="344" y="220">   └─ pubsub/</text><text x="344" y="238" fill="var(--s1)">      └─ init.q</text>
+    <text x="344" y="268" fill="var(--muted)">QPATH=$PWD/mod</text>
+  </g>
+  <text x="630" y="26" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--muted)" letter-spacing=".06em">3 · EXPORT AND use</text>
+  <rect x="630" y="38" width="320" height="140" rx="6" fill="var(--s1-bg)" stroke="var(--s1)"/>
+  <g font-family="JetBrains Mono,monospace" font-size="11.5" fill="var(--fg)">
+    <text x="644" y="60" fill="var(--muted)">/ tick/cfg/init.q, private namespace</text>
+    <text x="644" y="82">cast:{…}  env:{…}  cli:{…}</text>
+    <text x="644" y="104">.z.m.load:{[spec:isSpec]…}</text>
+    <text x="644" y="122" fill="var(--muted)">/ load is reserved: defined via .z.m</text>
+    <text x="644" y="150" fill="var(--s1)" font-weight="500">export:([.z.m.load;cast;env;cli])</text>
+  </g>
+  <path d="M790 178 V214" stroke="var(--s1)" stroke-width="1.4" marker-end="url(#ma)"/>
+  <rect x="630" y="220" width="320" height="68" rx="6" fill="var(--sheet)" stroke="var(--line)"/>
+  <g font-family="JetBrains Mono,monospace" font-size="12" fill="var(--fg)">
+    <text x="644" y="244">q)cfg:use`tick.cfg</text>
+    <text x="644" y="266">q)([port]):cfg.load ([port:5010])</text>
+  </g>
+</svg>
+    </div>
+    <figcaption><b>Anatomy of a module.</b> <code>use`tick.cfg</code> walks the search path and takes the first match; this repository's modules are directories with an <code>init.q</code>, found because <code>run-labs.sh</code> puts <code>mod/</code> on <code>QPATH</code>. Inside, everything is private until it appears in <code>export</code>, which is usually a dictionary literal. The caller chooses the name.</figcaption>
+  </figure>
+
+  <p class="lead">The three modules here are built for the tickerplant, which is why they share the prefix <code>tick.</code>. KX prefixes its modules <code>kx.</code> and Data Intellect's community modules use <code>di.</code>, so <code>tick.</code> cannot collide with either. Their layout follows Data Intellect's convention, code and tests in one directory per module, and their tests use KX's Unit Test module, <code>kx.test</code>.</p>
+
+  <div class="lab" id="lab-m1">
+    <div class="notes">
+      <h3><span class="n">M1</span>Using Modules</h3>
+      <div class="vtags"><span class="tag vX">KDB-X</span></div>
+      <p><code>kx.os</code> is the plainest example of what a module is for: environment variables, sleeping and subprocesses, behind four names, with nothing added to the root.</p>
+      <p>Datagen's own documentation opens with two lines of 4.1 grammar: a dictionary pattern takes one function out of the module's export, and a list pattern takes its result apart into five tables. Those are the tables the tickerplant in M4 streams.</p>
+      <p class="notice">A module is loaded once. <code>(use`kx.os)~os</code> is <code>1b</code>: the second <code>use</code> returns the cached export, and to reload after an edit you call <code>.Q.m.reuse</code>.</p>
+    </div>
+    <div class="cmds"><div class="outs one"><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ M1 · using modules (KDB-X)</span>
+<span class="pc">/ use returns the module&#x27;s export; you name it</span>
+<span class="pq">q)os:use`kx.os</span>
+<span class="pq">q)key os</span>
+``proc`read`sleep`env
+<span class="pq">q)type os.env[]</span>
+99h
+<span class="pq">q)os.sleep 00:00:00.2</span>
+<span class="pq">q)os.proc.start[&quot;sort&quot;;([stdin:(&quot;bbb&quot;;&quot;ccc&quot;;&quot;aaa&quot;);stdout:`text])]</span>
+status| 0i
+stdout| (&quot;aaa&quot;;&quot;bbb&quot;;&quot;ccc&quot;)
+<span class="pc">/ a dictionary pattern on an export, then a list pattern on a result</span>
+<span class="pq">q)([getInMemoryTables]):use`kx.datagen.capmkts</span>
+<span class="pq">q)(trade;quote;nbbo;master;exnames):getInMemoryTables[]</span>
+<span class="pq">q)count each ([trade;quote;nbbo;master;exnames])</span>
+trade  | 2619
+quote  | 25433
+nbbo   | 7717
+master | 51
+exnames| 19
+<span class="pq">q)cols trade</span>
+`sym`time`price`size`stop`cond`ex
+<span class="pc">/ a module loads once; a second use returns the cached export</span>
+<span class="pq">q)(use`kx.os)~os</span>
+1b
+<span class="pc">/ where use looks</span>
+<span class="pq">q).Q.m.SP</span>
+&quot;/Users/rohanshilohshah/Code/beyond-kdb3/mod&quot;
+&quot;/Users/rohanshilohshah/.kx/mod&quot;
+<span class="pc">/ outside a module, .z.M is the default namespace</span>
+<span class="pq">q).z.M</span>
+`.</pre></div></div><details class="labsrc"><summary>Show labs/m1-using-modules.q</summary><div class="code"><pre>/ M1 · using modules (KDB-X)
+/ use returns the module&#x27;s export; you name it
+os:use`kx.os
+key os
+type os.env[]
+os.sleep 00:00:00.2
+os.proc.start[&quot;sort&quot;;([stdin:(&quot;bbb&quot;;&quot;ccc&quot;;&quot;aaa&quot;);stdout:`text])]
+/ a dictionary pattern on an export, then a list pattern on a result
+([getInMemoryTables]):use`kx.datagen.capmkts
+(trade;quote;nbbo;master;exnames):getInMemoryTables[]
+count each ([trade;quote;nbbo;master;exnames])
+cols trade
+/ a module loads once; a second use returns the cached export
+(use`kx.os)~os
+/ where use looks
+.Q.m.SP
+/ outside a module, .z.M is the default namespace
+.z.M</pre></div></details></div>
+  </div>
+
+  <div class="lab" id="lab-m2">
+    <div class="notes">
+      <h3><span class="n">M2</span>Writing One: tick.cfg</h3>
+      <div class="vtags"><span class="tag vX">KDB-X</span><span class="tag v41">4.1 grammar</span></div>
+      <p>A spec is a dictionary literal of defaults, and the <b>type</b> of each default is the type the setting must have. <code>load</code> overlays the environment (<code>TICK_PORT</code>) and the command line (<code>-port</code>), parses each string to its default's type, and refuses by name anything that does not parse, so a process cannot start on port <code>0N</code>.</p>
+      <p>Three module rules show up in 40 lines: <code>load</code> is a keyword, so it is defined as <code>.z.m.load</code>; its parameter is guarded by a filter, <code>{[spec:isSpec]…}</code>, defined in the same module; and the export is a dictionary literal.</p>
+      <p class="notice">Prior art: jkane17's <code>clap</code> module parses command-line arguments the same way; KDB-X itself now reads <code>~/.kx/config</code> for q's own options. <code>tick.cfg</code> differs in letting the defaults' types do the validation.</p>
+    </div>
+    <div class="cmds"><div class="outs one"><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ M2 · writing a module: tick.cfg (KDB-X)</span>
+<span class="pq">q)cfg:use`tick.cfg</span>
+<span class="pq">q)key cfg</span>
+`load`cast`env`cli
+<span class="pq">q)spec:([port:5010;logdir:`:./log;tables:`trade`quote;pubMs:100])</span>
+<span class="er">&#x27;assign</span>
+<span class="pq">q)cfg.load spec</span>
+<span class="er">&#x27;spec</span>
+<span class="pc">/ the environment overrides a default, and is parsed to the default&#x27;s type</span>
+<span class="pq">q)setenv[`TICK_PORT;&quot;6010&quot;]</span>
+<span class="pq">q)cfg.load spec</span>
+<span class="er">&#x27;spec</span>
+<span class="pc">/ take only what you need with a dictionary pattern</span>
+<span class="pq">q)([port;tables]):cfg.load spec</span>
+<span class="er">&#x27;spec</span>
+<span class="pq">q)port</span>
+<span class="er">&#x27;port</span>
+<span class="pc">/ a value that does not parse is refused by name</span>
+<span class="pq">q)setenv[`TICK_PORT;&quot;oops&quot;]</span>
+<span class="pq">q)cfg.load spec</span>
+<span class="er">&#x27;spec</span>
+<span class="pc">/ setenv with :: unsets (KDB-X 2026.10.15)</span>
+<span class="pq">q)setenv[`TICK_PORT;::]</span>
+<span class="pq">q)cfg.load[spec]`port</span>
+<span class="er">&#x27;spec</span>
+<span class="pc">/ load&#x27;s parameter filter refuses anything that is not a spec</span>
+<span class="pq">q)cfg.load 1 2 3</span>
+<span class="er">&#x27;cfg: a spec is a dictionary of defaults</span>
+<span class="pc">/ load is a keyword: a plain load:{…} is refused, so the module defines .z.m.load</span>
+<span class="pq">q)load:{x}</span>
+<span class="er">&#x27;assign</span></pre></div></div><details class="labsrc"><summary>Show labs/m2-cfg.q</summary><div class="code"><pre>/ M2 · writing a module: tick.cfg (KDB-X)
+cfg:use`tick.cfg
+key cfg
+spec:([port:5010;logdir:(`:./log);tables:`trade`quote;pubMs:100])
+cfg.load spec
+/ the environment overrides a default, and is parsed to the default&#x27;s type
+setenv[`TICK_PORT;&quot;6010&quot;]
+cfg.load spec
+/ take only what you need with a dictionary pattern
+([port;tables]):cfg.load spec
+port
+/ a value that does not parse is refused by name
+setenv[`TICK_PORT;&quot;oops&quot;]
+cfg.load spec
+/ setenv with :: unsets (KDB-X 2026.10.15)
+setenv[`TICK_PORT;::]
+cfg.load[spec]`port
+/ load&#x27;s parameter filter refuses anything that is not a spec
+cfg.load 1 2 3
+/ load is a keyword: a plain load:{…} is refused, so the module defines .z.m.load
+load:{x}</pre></div></details></div>
+  </div>
+  <details class="srcfile"><summary><span class="fn">mod/tick/cfg/init.q</span><span class="lc">40 lines</span></summary><div class="body"><div class="code"><pre>/ tick.cfg : typed configuration from defaults, the environment and the command line
+
+/   cfg:use`tick.cfg
+/   c:cfg.load ([port:5010;logdir:(`:./log);tables:`trade`quote])
+/   ([port;tables]):cfg.load spec                / take just what you need
+
+/ A spec is a dictionary literal of defaults. The TYPE of each default is the type
+/ the setting must have: strings from the environment or the command line are
+/ parsed to it, and anything that does not parse is refused by name.
+/ Precedence, lowest to highest:  default  &lt;  TICK_&lt;NAME&gt; in the environment  &lt;  -name on the command line
+
+/ parse one string to the type of its default
+cast:{[d;s] t:type d;
+  $[10h=t; s;                                      / a string stays a string
+    0h&gt;t;  (upper .Q.t abs t)$s;                   / an atom: &quot;J&quot;$&quot;5010&quot;
+    11h=t; `$&quot; &quot; vs s;                             / a symbol list: space separated
+           (upper .Q.t t)$&quot; &quot; vs s] }              / any other vector
+
+/ a value is missing if it is a null atom or an empty list
+missing:{$[0&gt;type x; null x; 0=count x]}
+
+/ settings named in the environment, as TICK_PORT, TICK_LOGDIR, ...
+env:{[spec] n:key spec; v:getenv each `$&quot;TICK_&quot;,/:upper string n;
+  n[w]!v w:where 0&lt;count each v }
+
+/ settings named on the command line, as -port 6010 -tables trade quote
+cli:{[spec] o:.Q.opt .z.x; o:(key[o] inter key spec)#o; {&quot; &quot; sv x} each o }
+
+/ a filter for load&#x27;s parameter: a dictionary keyed by symbols, or a &#x27;cfg error.
+/ Defined before load, so the name exists when load&#x27;s parameter list is read.
+isSpec:{$[(99h=type x) &amp; 11h=type key x; x; &#x27;&quot;cfg: a spec is a dictionary of defaults&quot;]}
+
+/ load is a q keyword, so a module can only define it under .z.m
+.z.m.load:{[spec:isSpec]
+  s:(env spec),cli spec;                           / later keys win: the command line beats the environment
+  k:key s; v:cast&#x27;[spec k;value s];
+  if[count b:k where missing&#x27;[v] &amp; not missing&#x27;[spec k]; &#x27;&quot;cfg: cannot parse &quot;,&quot;, &quot; sv string b];
+  spec,k!v }
+
+export:([.z.m.load;cast;env;cli])</pre></div></div></details>
+
+  <div class="lab" id="lab-m3">
+    <div class="notes">
+      <h3><span class="n">M3</span>Filters as a Library: tick.check</h3>
+      <div class="vtags"><span class="tag vX">KDB-X</span><span class="tag v41">4.1 grammar</span></div>
+      <p>Every function in <code>tick.check</code> takes a value and returns it, possibly converted, or signals an error that names what failed. That is the contract a filter function needs, so each one drops into a pattern or a parameter list: <code>upd:{[t:chk.table;x] (x:chk.schema t):x; t insert x}</code> refuses an unknown table in its parameter list and a mistyped row on its first line, and nothing is inserted unless both pass.</p>
+      <p><code>schema</code> takes two arguments; projected, <code>chk.schema`trade</code> is a one-argument filter. The parameter is called <code>tn</code>, because inside <code>exec t from meta tn</code> a column named <code>t</code> would shadow a parameter called <code>t</code>.</p>
+    </div>
+    <div class="cmds"><div class="outs one"><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ M3 · filters as a library: tick.check (KDB-X)</span>
+<span class="pq">q)chk:use`tick.check</span>
+<span class="pq">q)trade:([]time:`timespan$();sym:`symbol$();px:`float$();size:`long$())</span>
+<span class="pq">q)chk.table`trade</span>
+`trade
+<span class="pq">q)chk.table`nope</span>
+<span class="er">&#x27;unknown table: nope</span>
+<span class="pq">q)chk.schema[`trade;(0D10:00;`AAPL;182.4;100)]</span>
+0D10:00:00.000000000
+`AAPL
+182.4
+100
+<span class="pq">q)chk.schema[`trade;(0D10:00;`AAPL;182.4;100f)]</span>
+<span class="er">&#x27;type: trade size</span>
+<span class="pc">/ an upd that refuses bad messages before anything is inserted</span>
+<span class="pq">q)upd:{[t:chk.table;x] (x:chk.schema t):x; t insert x}</span>
+<span class="pq">q)upd[`trade;(0D10:00;`AAPL;182.4;100)]</span>
+,0
+<span class="pq">q)upd[`trade;(0D10:00;`AAPL;182.4;100f)]</span>
+<span class="er">&#x27;type: trade size</span>
+<span class="pq">q)upd[`trades;(0D10:00;`AAPL;182.4;100)]</span>
+<span class="er">&#x27;unknown table: trades</span>
+<span class="pq">q)count trade</span>
+1
+<span class="pc">/ filters that convert</span>
+<span class="pq">q)(s:chk.sym):&quot;AAPL&quot;</span>
+<span class="pq">q)s</span>
+`AAPL
+<span class="pq">q)chk.ts 2026.11.21D10:00:00</span>
+0D10:00:00.000000000</pre></div></div><details class="labsrc"><summary>Show labs/m3-check.q</summary><div class="code"><pre>/ M3 · filters as a library: tick.check (KDB-X)
+chk:use`tick.check
+trade:([]time:`timespan$();sym:`symbol$();px:`float$();size:`long$())
+chk.table`trade
+chk.table`nope
+chk.schema[`trade;(0D10:00;`AAPL;182.4;100)]
+chk.schema[`trade;(0D10:00;`AAPL;182.4;100f)]
+/ an upd that refuses bad messages before anything is inserted
+upd:{[t:chk.table;x] (x:chk.schema t):x; t insert x}
+upd[`trade;(0D10:00;`AAPL;182.4;100)]
+upd[`trade;(0D10:00;`AAPL;182.4;100f)]
+upd[`trades;(0D10:00;`AAPL;182.4;100)]
+count trade
+/ filters that convert
+(s:chk.sym):&quot;AAPL&quot;
+s
+chk.ts 2026.11.21D10:00:00</pre></div></details></div>
+  </div>
+  <div class="cols">
+    <div class="col"><details class="srcfile"><summary><span class="fn">mod/tick/check/init.q</span><span class="lc">43 lines</span></summary><div class="body"><div class="code"><pre>/ tick.check : filter functions for patterns and parameter lists
+
+/   chk:use`tick.check
+/   upd:{[t:chk.table;x] (x:chk.schema t):x; t insert x}
+/   (s:chk.sym):&quot;AAPL&quot;
+
+/ Every function here takes a value and either returns it (possibly converted)
+/ or signals. Used as a filter in a pattern, it runs BEFORE anything is
+/ assigned, so a bad message never reaches a table. Errors name what failed.
+
+/ x names a table that exists in the root
+table:{[x:`s] $[x in tables`.; x; &#x27;&quot;unknown table: &quot;,string x]}
+
+/ schema[t;x]: x is one row or a batch of columns whose count and types fit table t.
+/ Projected as schema t, it is a filter: (x:chk.schema t):x
+/ The parameter is tn, not t: inside exec, a column named t would shadow it.
+schema:{[tn;x]
+  tb:(get `.) tn;                                   / the ROOT table, whatever namespace the caller is in
+  m:exec t from 0!meta tb;                          / one type char per column, &quot; &quot; for general
+  tx:.Q.t abs type each x;                          / atoms (one row) or vectors (a batch)
+  $[(count m)&lt;&gt;count x; &#x27;&quot;length: &quot;,string tn;
+    any b:(m&lt;&gt;&quot; &quot;) &amp; m&lt;&gt;tx; &#x27;&quot;type: &quot;,(string tn),&quot; &quot;,&quot;, &quot; sv string (cols tb) where b;
+    x] }
+
+/ converts a string, or a list of strings, to symbols; passes symbols through
+sym:{$[10h=abs type x; `$x;
+       (0h=type x) &amp; all 10h=type each x; `$x;
+       11h=abs type x; x;
+       &#x27;&quot;sym&quot;]}
+
+/ converts timestamps to time of day; passes timespans through
+ts:{$[16h=abs type x; x; 12h=abs type x; &quot;n&quot;$x; &#x27;&quot;timespan&quot;]}
+
+/ no nulls anywhere in an atom or a vector
+nonull:{$[any null x; &#x27;&quot;null&quot;; x]}
+
+/ every value strictly positive
+positive:{$[all x&gt;0; x; &#x27;&quot;positive&quot;]}
+
+/ between[lo;hi]: a filter that keeps values inside [lo;hi]
+between:{[lo;hi;x] $[all x within (lo;hi); x; &#x27;&quot;range&quot;]}
+
+export:([table;schema;sym;ts;nonull;positive;between])</pre></div></div></details><details class="srcfile"><summary><span class="fn">mod/tick/check/test/check.q</span><span class="lc">27 lines</span></summary><div class="body"><div class="code"><pre>/ tests for tick.check, written for KX&#x27;s Unit Test module (kx.test)
+t:use`kx.test;
+/ kx.test runs tests in a namespace of its own: shared state goes in setup, as in KX&#x27;s own tests
+t.setup[{chk::use`tick.check; @[`.;`trade;:;([]time:`timespan$();sym:`symbol$();px:`float$();size:`long$())]}]
+
+t.feature`table
+t.assertMatch[{chk.table`trade};`trade;([name:&quot;a known table passes&quot;])]
+t.assertError[{chk.table`nope};&quot;unknown table: nope&quot;;([name:&quot;an unknown table is named&quot;])]
+t.assertError[{chk.table&quot;trade&quot;};&quot;type&quot;;([name:&quot;a string is not a table name&quot;])]
+
+t.feature`schema
+t.assertMatch[{chk.schema[`trade;(0D10:00;`AAPL;182.4;100)]};(0D10:00;`AAPL;182.4;100);([name:&quot;one good row passes&quot;])]
+t.assertMatch[{chk.schema[`trade;(2#0D10:00;`AAPL`MSFT;1 2f;3 4)]};(2#0D10:00;`AAPL`MSFT;1 2f;3 4);([name:&quot;a good batch passes&quot;])]
+t.assertError[{chk.schema[`trade;(0D10:00;`AAPL;182.4;100f)]};&quot;type: trade size&quot;;([name:&quot;a float size is named&quot;])]
+t.assertError[{chk.schema[`trade;(0D10:00;`AAPL;182.4)]};&quot;length: trade&quot;;([name:&quot;a short row is refused&quot;])]
+
+t.feature`pattern
+t.assertMatch[{(x:chk.sym):&quot;AAPL&quot;;x};`AAPL;([name:&quot;a filter converts on assignment&quot;])]
+t.assertMatch[{(x:chk.schema`trade):(0D10:00;`AAPL;1f;1);x 1};`AAPL;([name:&quot;a projected filter in a pattern&quot;])]
+t.assertError[{(x:chk.positive):1 0 2;x};&quot;positive&quot;;([name:&quot;a failed filter assigns nothing&quot;])]
+
+t.feature`filters
+t.assertMatch[{chk.sym(&quot;AAPL&quot;;&quot;MSFT&quot;)};`AAPL`MSFT;([name:&quot;strings become symbols&quot;])]
+t.assertType[{chk.ts 2026.11.21D10:00:00};&quot;n&quot;;([name:&quot;a timestamp becomes a timespan&quot;])]
+t.assertError[{chk.nonull 1 0N 3};&quot;null&quot;;([name:&quot;a null is refused&quot;])]
+t.assertMatch[{chk.between[0;10] 3 7};3 7;([name:&quot;inside the range passes&quot;])]
+t.assertError[{chk.between[0;10] 3 11};&quot;range&quot;;([name:&quot;outside the range is refused&quot;])]</pre></div></div></details></div>
+    <div class="col"><div class="out vx"><div class="vh"><b>KDB-X · kx.test</b><span>mod/tick/check/test</span></div><pre>filename                     feature name                   status executionT..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q table   &quot;a known table passes&quot; error  0         ..
+
+filename                     feature name                        status execu..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q table   &quot;an unknown table is named&quot; fail   0    ..
+
+filename                     feature name                           status ex..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q table   &quot;a string is not a table name&quot; fail   0 ..
+
+filename                     feature name                  status executionTi..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q schema  &quot;one good row passes&quot; error  0          ..
+
+filename                     feature name                  status executionTi..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q schema  &quot;a good batch passes&quot; error  0          ..
+
+filename                     feature name                    status execution..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q schema  &quot;a float size is named&quot; fail   0        ..
+
+filename                     feature name                     status executio..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q schema  &quot;a short row is refused&quot; fail   0       ..
+
+filename                     feature name                              status..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q pattern &quot;a filter converts on assignment&quot; error ..
+
+filename                     feature name                              status..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q pattern &quot;a projected filter in a pattern&quot; error ..
+
+filename                     feature name                              status..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q pattern &quot;a failed filter assigns nothing&quot; fail  ..
+
+filename                     feature name                     status executio..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q filters &quot;strings become symbols&quot; error  0       ..
+
+filename                     feature name                             status ..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q filters &quot;a timestamp becomes a timespan&quot; error  ..
+
+filename                     feature name                status executionTime..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q filters &quot;a null is refused&quot; fail   0            ..
+
+filename                     feature name                      status executi..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q filters &quot;inside the range passes&quot; error  0      ..
+
+filename                     feature name                           status ex..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q filters &quot;outside the range is refused&quot; fail   0 ..
+
+filename                     feature name                              status..
+-----------------------------------------------------------------------------..
+:mod/tick/check/test/check.q table   &quot;a known table passes&quot;            error ..
+:mod/tick/check/test/check.q table   &quot;an unknown table is named&quot;       fail  ..
+:mod/tick/check/test/check.q table   &quot;a string is not a table name&quot;    fail  ..
+:mod/tick/check/test/check.q schema  &quot;one good row passes&quot;             error ..
+:mod/tick/check/test/check.q schema  &quot;a good batch passes&quot;             error ..
+:mod/tick/check/test/check.q schema  &quot;a float size is named&quot;           fail  ..
+:mod/tick/check/test/check.q schema  &quot;a short row is refused&quot;          fail  ..
+:mod/tick/check/test/check.q pattern &quot;a filter converts on assignment&quot; error ..
+:mod/tick/check/test/check.q pattern &quot;a projected filter in a pattern&quot; error ..
+:mod/tick/check/test/check.q pattern &quot;a failed filter assigns nothing&quot; fail  ..
+:mod/tick/check/test/check.q filters &quot;strings become symbols&quot;          error ..
+:mod/tick/check/test/check.q filters &quot;a timestamp becomes a timespan&quot;  error ..
+:mod/tick/check/test/check.q filters &quot;a null is refused&quot;               fail  ..
+:mod/tick/check/test/check.q filters &quot;inside the range passes&quot;         error ..
+:mod/tick/check/test/check.q filters &quot;outside the range is refused&quot;    fail  ..
+&#x27;2026.11.21T06:08:38.355 check.xml
+  [2]  /Users/rohanshilohshah/Code/beyond-kdb3/mod/tick/check/test/run.q:7: `:out/junit-check.xml 0: t.junitReport r;
+                                                                                        ^</pre></div><div class="out vx"><div class="vh"><b>KDB-X · kx.test</b><span>mod/tick/cfg/test</span></div><pre>&#x27;2026.11.21T06:08:28.295 assign
+  [7]  :mod/tick/cfg/test/cfg.q:4: spec:([port:5010;logdir:`:./log;tables:`trade`quote;name:&quot;tp&quot;]);
+                                                                         ^
+  [4]  /Users/rohanshilohshah/Code/beyond-kdb3/mod/tick/cfg/test/run.q:3: \l :mod/tick/cfg/test/cfg.q
+                                                                          ^
+  [3]  /Users/rohanshilohshah/.kx/mod/kx/test.q:417: .m.kx.0test.runFile:{[file:`s] setFileName[file]; system &quot;l &quot;,string[file]; setFileName[.z.f]}
+                                                                                                       ^
+  [2]  /Users/rohanshilohshah/Code/beyond-kdb3/mod/tick/cfg/test/run.q:3: t.runFile`:mod/tick/cfg/test/cfg.q;
+                                                                          ^</pre></div></div>
+  </div>
+
+  <div class="lab" id="lab-m4">
+    <div class="notes">
+      <h3><span class="n">M4</span>The Tickerplant on Modules</h3>
+      <div class="vtags"><span class="tag vX">KDB-X</span></div>
+      <p>The vanilla <code>u.q</code> is twenty lines that run under <code>\d .u</code> and amend <code>`.u.w</code> by its absolute name. <code>tick.pubsub</code> is the same twenty lines as a module, changed in three places: no <code>\d</code>, <code>.z.M.w</code> instead of <code>`.u.w</code>, and two small functions to read the state that is now private.</p>
+      <p><code>tickx.q</code> is the vanilla <code>tick.q</code> with five changes, each marked: it loads the module, binds its functions to the <code>.u</code> names subscribers call, keeps its own table list, guards <code>upd</code> with <code>[t:chk.table;x]</code>, and reads its schema from Datagen. The subscriber protocol does not change, so the <b>unmodified</b> <code>r.q</code> subscribes to it.</p>
+      <p class="warn">The binding has to be done from the root: <code>.u.sub:ps.sub</code>. Written after <code>\d .u</code>, a bare <code>ps</code> would be read as <code>.u.ps</code>, which is the rule from <a href="#fig-names">§Names</a> biting in practice.</p>
+      <p class="notice">Monitoring changes: <code>count each .u.w</code> becomes <code>count each .u.subs[]</code>. Run it with <code>labs/m4-pubsub.sh</code>, which starts the plant, the RDB and the feed, asks the questions on the right, and stops them.</p>
+    </div>
+    <div class="cmds"><div class="outs one"><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ M4 · the tickerplant on modules (run by labs/m4-pubsub.sh)</span>
+<span class="pq">q)tp:hopen 5710</span>
+<span class="pq">q)rdb:hopen 5711</span>
+<span class="pc">/ the plant: what it serves, and who subscribes (was count each .u.w)</span>
+<span class="pq">q)tp&quot;.u.t&quot;</span>
+`quote`trade
+<span class="pq">q)tp&quot;count each .u.subs[]&quot;</span>
+quote| 1
+trade| 1
+<span class="pc">/ the vanilla RDB filled itself through the module&#x27;s .u.sub</span>
+<span class="pq">q)rdb&quot;tables[]!count each value each tables[]&quot;</span>
+quote| 0
+trade| 0
+<span class="pq">q)rdb&quot;select n:count i by sym from trade&quot;</span>
+sym| n
+---| -
+<span class="pc">/ the filter on upd: a table the plant does not carry is refused, by name</span>
+<span class="pq">q)tp&quot;.u.upd[`trades;()]&quot;</span>
+<span class="er">&#x27;unknown table: trades</span>
+<span class="pc">/ .z.pc was set from inside the module, and closes over the module&#x27;s names</span>
+<span class="pq">q)tp&quot;.z.pc&quot;</span>
+{del[;x]each t}</pre></div></div><details class="labsrc"><summary>Show labs/m4-pubsub.q</summary><div class="code"><pre>/ M4 · the tickerplant on modules (run by labs/m4-pubsub.sh)
+tp:hopen 5710
+rdb:hopen 5711
+/ the plant: what it serves, and who subscribes (was count each .u.w)
+tp&quot;.u.t&quot;
+tp&quot;count each .u.subs[]&quot;
+/ the vanilla RDB filled itself through the module&#x27;s .u.sub
+rdb&quot;tables[]!count each value each tables[]&quot;
+rdb&quot;select n:count i by sym from trade&quot;
+/ the filter on upd: a table the plant does not carry is refused, by name
+tp&quot;.u.upd[`trades;()]&quot;
+/ .z.pc was set from inside the module, and closes over the module&#x27;s names
+tp&quot;.z.pc&quot;</pre></div></details></div>
+  </div>
+  <details class="srcfile"><summary><span class="fn">mod/tick/pubsub/init.q</span><span class="lc">40 lines</span></summary><div class="body"><div class="code"><pre>/ tick.pubsub : the kdb-tick pub/sub engine (tick/u.q) as a KDB-X module
+
+/   ps:use`tick.pubsub
+
+/ Ported line for line from KxSystems/kdb-tick tick/u.q (2019.06.17); every
+/ change is marked CHANGE. The wire protocol does not change: subscribers still
+/ call .u.sub and receive (`upd;t;x) and (`.u.end;d), so the vanilla r.q and
+/ chainedtick.q work against it untouched. tickx.q binds these functions to the
+/ .u names subscribers call.
+
+/ CHANGE: no \d .u. A module runs in a namespace of its own, so the bare names
+/ below (w, t, sel, add, del) are this module&#x27;s, bound when each function is
+/ defined, and nothing leaks into the root or into .u.
+
+/ CHANGE: init returns t, so the caller can keep its own copy of the table list
+init:{w::t!(count t::tables`.)#(); t}
+
+del:{w[x]_:w[x;;0]?y};
+/ an absolute name: this still sets the process&#x27;s .z.pc, and the lambda&#x27;s del
+/ and t are this module&#x27;s, because that is where it was defined
+.z.pc:{del[;x]each t};
+
+sel:{$[`~y;x;select from x where sym in y]}
+
+pub:{[t;x]{[t;x;w]if[count x:sel[x]w 1;(neg first w)(`upd;t;x)]}[t;x]each w t}
+
+/ CHANGE: u.q amended `.u.w, a hard-coded absolute name. .z.M.w is the
+/ symbolic name of THIS module&#x27;s w, wherever the module was loaded.
+add:{$[(count w x)&gt;i:w[x;;0]?.z.w;.[.z.M.w;(x;i;1);union;y];w[x],:enlist(.z.w;y)];(x;$[99=type v:value x;sel[v]y;@[0#v;`sym;`g#]])}
+
+sub:{if[x~`;:sub[;y]each t];if[not x in t;&#x27;x];del[x].z.w;add[x;y]}
+
+end:{(neg union/[w[;;0]])@\:(`.u.end;x)}
+
+/ NEW: the state is private now, so monitoring reads it through functions.
+/ .u.w becomes .u.subs[]; .u.t is kept by the caller from init.
+subs:{w}
+tabs:{t}
+
+export:([init;del;sel;pub;add;sub;end;subs;tabs])</pre></div></div></details>
+  <details class="srcfile"><summary><span class="fn">diff vendor/tick.q tickx.q</span><span class="lc">what changed</span></summary><div class="body"><div class="code"><pre class="diff"><span class="dd">--- vendor/tick.q</span>
+<span class="da">+++ tickx.q</span>
+<span class="dh">@@ -1,24 +1,8 @@</span>
+<span class="dd">-/ q tick.q sym . -p 5001 &lt;/dev/null &gt;foo 2&gt;&amp;1 &amp;</span>
+<span class="dd">-/2014.03.12 remove license check</span>
+<span class="dd">-/2013.09.05 warn on corrupt log</span>
+<span class="dd">-/2013.08.14 allow &lt;endofday&gt; when -u is set</span>
+<span class="dd">-/2012.11.09 use timestamp type rather than time. -19h/&quot;t&quot;/.z.Z -&gt; -16h/&quot;n&quot;/.z.P</span>
+<span class="dd">-/2011.02.10 i-&gt;i,j to avoid duplicate data if subscription whilst data in buffer</span>
+<span class="dd">-/2009.07.30 ts day (and &quot;d&quot;$a instead of floor a)</span>
+<span class="dd">-/2008.09.09 .k -&gt; .q, 2.4</span>
+<span class="dd">-/2008.02.03 tick/r.k allow no log</span>
+<span class="dd">-/2007.09.03 check one day flip</span>
+<span class="dd">-/2006.10.18 check type?</span>
+<span class="dd">-/2006.07.24 pub then log</span>
+<span class="dd">-/2006.02.09 fix(2005.11.28) .z.ts end-of-day</span>
+<span class="dd">-/2006.01.05 @[;`sym;`g#] in tick.k load</span>
+<span class="dd">-/2005.12.21 tick/r.k reset `g#sym</span>
+<span class="dd">-/2005.12.11 feed can send .u.endofday</span>
+<span class="dd">-/2005.11.28 zero-end-of-day</span>
+<span class="dd">-/2005.10.28 allow`time on incoming</span>
+<span class="dd">-/2005.10.10 zero latency</span>
+<span class="dd">-&quot;kdb+tick 2.8 2014.03.12&quot;</span>
+<span class="da">+/ tickx.q : KxSystems/kdb-tick tick.q (2014.03.12), brought forward to KDB-X.</span>
+<span class="da">+/ Diff it against vendor/tick.q: every change is marked CHANGE.</span>
+<span class="da">+/q tickx.q SRC [DST] [-p 5010]</span>
+<span class="da">+&quot;tickx 2026.11 (kdb-tick 2.8 2014.03.12)&quot;</span>
+ 
+<span class="dd">-/q tick.q SRC [DST] [-p 5010] [-o h]</span>
+<span class="dd">-system&quot;l tick/&quot;,(src:first .z.x,enlist&quot;sym&quot;),&quot;.q&quot;</span>
+<span class="da">+/ CHANGE: the schema lives in schema/, not tick/, because tick/ is KX&#x27;s code</span>
+<span class="da">+system&quot;l schema/&quot;,(src:first .z.x,enlist&quot;dg&quot;),&quot;.q&quot;</span>
+ 
+<span class="dh">@@ -26,6 +10,15 @@</span>
+ 
+<span class="dd">-\l tick/u.q</span>
+<span class="da">+/ CHANGE: the pub/sub engine is a module, not a script loaded into .u.</span>
+<span class="da">+/ Bound from the ROOT with qualified names: after \d .u, a bare ps would be</span>
+<span class="da">+/ read as .u.ps (a global is looked up in the namespace it is defined in).</span>
+<span class="da">+ps:use`tick.pubsub</span>
+<span class="da">+.u.init:ps.init; .u.del:ps.del; .u.sel:ps.sel; .u.pub:ps.pub; .u.add:ps.add;</span>
+<span class="da">+.u.sub:ps.sub;   .u.end:ps.end; .u.subs:ps.subs</span>
+<span class="da">+/ CHANGE: upd&#x27;s table argument is checked by a filter before upd runs</span>
+<span class="da">+.u.chk:use`tick.check</span>
+<span class="da">+</span>
+ \d .u
+ ld:{if[not type key L::`$(-10_string L),string x;.[L;();:;()]];i::j::-11!(-2;L);if[0&lt;=type i;-2 (string L),&quot; is a corrupt log. Truncate to length &quot;,(string last i),&quot; and restart&quot;;exit 1];hopen L};
+<span class="dd">-tick:{init[];if[not min(`time`sym~2#key flip value@)each t;&#x27;`timesym];@[;`sym;`g#]each t;d::.z.D;if[l::count y;L::`$&quot;:&quot;,y,&quot;/&quot;,x,10#&quot;.&quot;;l::ld d]};</span>
+<span class="da">+/ CHANGE: init returns the table list; u.q set .u.t itself</span>
+<span class="da">+tick:{t::init[];if[not min(`time`sym~2#key flip value@)each t;&#x27;`timesym];@[;`sym;`g#]each t;d::.z.D;if[l::count y;L::`$&quot;:&quot;,y,&quot;/&quot;,x,10#&quot;.&quot;;l::ld d]};</span>
+ 
+<span class="dh">@@ -34,5 +27,7 @@</span>
+ 
+<span class="da">+/ CHANGE: [t:chk.table;x] - a message for a table this plant does not carry is</span>
+<span class="da">+/ refused with &#x27;unknown table: &lt;name&gt; before it is logged or published</span>
+ if[system&quot;t&quot;;
+  .z.ts:{pub&#x27;[t;value each t];@[`.;t;@[;`sym;`g#]0#];i::j;ts .z.D};
+<span class="dd">- upd:{[t;x]</span>
+<span class="da">+ upd:{[t:chk.table;x]</span>
+  if[not -16=type first first x;if[d&lt;&quot;d&quot;$a:.z.P;.z.ts[]];a:&quot;n&quot;$a;x:$[0&gt;type first x;a,x;(enlist(count first x)#a),x]];
+<span class="dh">@@ -42,3 +37,3 @@</span>
+  .z.ts:{ts .z.D};
+<span class="dd">- upd:{[t;x]ts&quot;d&quot;$a:.z.P;</span>
+<span class="da">+ upd:{[t:chk.table;x]ts&quot;d&quot;$a:.z.P;</span>
+  if[not -16=type first first x;a:&quot;n&quot;$a;x:$[0&gt;type first x;a,x;(enlist(count first x)#a),x]];
+<span class="dh">@@ -51,3 +46,3 @@</span>
+  globals used
+<span class="dd">- .u.w - dictionary of tables-&gt;(handle;syms)</span>
+<span class="da">+ .u.subs[] - dictionary of tables-&gt;(handle;syms)   CHANGE: was the variable .u.w</span>
+  .u.i - msg count in log file
+<span class="dh">@@ -55,3 +50,3 @@</span>
+  .u.t - table names
+<span class="dd">- .u.L - tp log filename, e.g. `:./sym2008.09.11</span>
+<span class="da">+ .u.L - tp log filename, e.g. `:./dg2026.11.21</span>
+  .u.l - handle to tp log file
+<span class="dh">@@ -59,10 +54,5 @@</span>
+ 
+<span class="dd">-/test</span>
+<span class="dd">-&gt;q tick.q</span>
+<span class="dd">-&gt;q tick/ssl.q</span>
+<span class="dd">-</span>
+ /run
+<span class="dd">-&gt;q tick.q sym  .  -p 5010	/tick</span>
+<span class="dd">-&gt;q tick/r.q :5010 -p 5011	/rdb</span>
+<span class="dd">-&gt;q sym            -p 5012	/hdb</span>
+<span class="dd">-&gt;q tick/ssl.q sym :5010		/feed</span>
+<span class="da">+&gt;q tickx.q dg ./log -p 5010           /tick</span>
+<span class="da">+&gt;q vendor/tick/r.q :5010 -p 5011      /rdb</span>
+<span class="da">+&gt;q feedx.q :5010                      /feed (Datagen)</span></pre></div></div></details>
+  <details class="srcfile"><summary><span class="fn">diff vendor/tick/u.q mod/tick/pubsub/init.q</span><span class="lc">what changed</span></summary><div class="body"><div class="code"><pre class="diff"><span class="dd">--- vendor/tick/u.q</span>
+<span class="da">+++ mod/tick/pubsub/init.q</span>
+<span class="dh">@@ -1,9 +1,22 @@</span>
+<span class="dd">-/2019.06.17 ensure sym has g attr for schema returned to new subscriber</span>
+<span class="dd">-/2008.09.09 .k -&gt; .q</span>
+<span class="dd">-/2006.05.08 add</span>
+<span class="da">+/ tick.pubsub : the kdb-tick pub/sub engine (tick/u.q) as a KDB-X module</span>
+ 
+<span class="dd">-\d .u</span>
+<span class="dd">-init:{w::t!(count t::tables`.)#()}</span>
+<span class="da">+/   ps:use`tick.pubsub</span>
+ 
+<span class="dd">-del:{w[x]_:w[x;;0]?y};.z.pc:{del[;x]each t};</span>
+<span class="da">+/ Ported line for line from KxSystems/kdb-tick tick/u.q (2019.06.17); every</span>
+<span class="da">+/ change is marked CHANGE. The wire protocol does not change: subscribers still</span>
+<span class="da">+/ call .u.sub and receive (`upd;t;x) and (`.u.end;d), so the vanilla r.q and</span>
+<span class="da">+/ chainedtick.q work against it untouched. tickx.q binds these functions to the</span>
+<span class="da">+/ .u names subscribers call.</span>
+<span class="da">+</span>
+<span class="da">+/ CHANGE: no \d .u. A module runs in a namespace of its own, so the bare names</span>
+<span class="da">+/ below (w, t, sel, add, del) are this module&#x27;s, bound when each function is</span>
+<span class="da">+/ defined, and nothing leaks into the root or into .u.</span>
+<span class="da">+</span>
+<span class="da">+/ CHANGE: init returns t, so the caller can keep its own copy of the table list</span>
+<span class="da">+init:{w::t!(count t::tables`.)#(); t}</span>
+<span class="da">+</span>
+<span class="da">+del:{w[x]_:w[x;;0]?y};</span>
+<span class="da">+/ an absolute name: this still sets the process&#x27;s .z.pc, and the lambda&#x27;s del</span>
+<span class="da">+/ and t are this module&#x27;s, because that is where it was defined</span>
+<span class="da">+.z.pc:{del[;x]each t};</span>
+ 
+<span class="dh">@@ -13,3 +26,5 @@</span>
+ 
+<span class="dd">-add:{$[(count w x)&gt;i:w[x;;0]?.z.w;.[`.u.w;(x;i;1);union;y];w[x],:enlist(.z.w;y)];(x;$[99=type v:value x;sel[v]y;@[0#v;`sym;`g#]])}</span>
+<span class="da">+/ CHANGE: u.q amended `.u.w, a hard-coded absolute name. .z.M.w is the</span>
+<span class="da">+/ symbolic name of THIS module&#x27;s w, wherever the module was loaded.</span>
+<span class="da">+add:{$[(count w x)&gt;i:w[x;;0]?.z.w;.[.z.M.w;(x;i;1);union;y];w[x],:enlist(.z.w;y)];(x;$[99=type v:value x;sel[v]y;@[0#v;`sym;`g#]])}</span>
+ 
+<span class="dh">@@ -18 +33,8 @@</span>
+ end:{(neg union/[w[;;0]])@\:(`.u.end;x)}
+<span class="da">+</span>
+<span class="da">+/ NEW: the state is private now, so monitoring reads it through functions.</span>
+<span class="da">+/ .u.w becomes .u.subs[]; .u.t is kept by the caller from init.</span>
+<span class="da">+subs:{w}</span>
+<span class="da">+tabs:{t}</span>
+<span class="da">+</span>
+<span class="da">+export:([init;del;sel;pub;add;sub;end;subs;tabs])</span></pre></div></div></details>
+  <details class="srcfile"><summary><span class="fn">schema/dg.q</span><span class="lc">10 lines</span></summary><div class="body"><div class="code"><pre>/ schema/dg.q : the tickerplant&#x27;s schema, taken from Datagen&#x27;s own tables
+/ tickx.q loads this as its SRC. Datagen decides the columns; this file only
+/ enforces the tickerplant contract: time then sym first, time a timespan.
+([getInMemoryTables]):use`kx.datagen.capmkts         / a dictionary pattern on a module&#x27;s export
+(trade;quote;nbbo;master;exnames):getInMemoryTables[]  / a list pattern on its result
+fix:{[t] t:`time`sym xcols t; update time:&quot;n&quot;$time from t}
+trade:0#fix trade;
+quote:0#fix quote;
+/ only trade and quote are streamed; anything else in the root would become a table the plant serves
+delete nbbo, master, exnames, fix, getInMemoryTables from `.;</pre></div></div></details>
+  <details class="srcfile"><summary><span class="fn">feedx.q</span><span class="lc">18 lines</span></summary><div class="body"><div class="code"><pre>/ feedx.q : replay Datagen&#x27;s synthetic trades and quotes into a tickerplant
+/ usage:  q feedx.q [:host]:5010
+([getInMemoryTables]):use`kx.datagen.capmkts
+(trade;quote;nbbo;master;exnames):getInMemoryTables[]
+fix:{[t] `time xasc update time:&quot;n&quot;$time from `time`sym xcols t}
+T:fix trade; Q:fix quote;
+
+h:neg hopen `$$[count .z.x; first .z.x; &quot;:5010&quot;];
+/ time is already a timespan, so the plant keeps it rather than stamping its own
+send:{[t;s] if[count s; h(&quot;.u.upd&quot;;t;value flip s)]}
+
+it:iq:0; b:50;                                         / 50 trades a tick, quotes in proportion
+qb:ceiling b*(count Q)%count T;
+.z.ts:{ send[`trade;b sublist it _ T]; it+:b;
+        send[`quote;qb sublist iq _ Q]; iq+:qb;
+        if[it&gt;=count T; -1&quot;feedx: end of data&quot;; system&quot;t 0&quot;] }
+system&quot;t 100&quot;;
+-1&quot;feedx: &quot;,(string count T),&quot; trades, &quot;,(string count Q),&quot; quotes; \\t 0 to pause&quot;;</pre></div></div></details>
+
+  <div class="shard-note" id="virtual-tables">
+    <div class="note-title">Beyond Syntax: Virtual Tables</div>
+    <p>One module changes what a table <i>is</i> without changing a word of the q you write against it. <code>kx.pq.t</code> builds a <b>virtual table</b> over data already on disk, Parquet files or a directory layout of your own, from a catalogue of partitions (<code>mkP</code>). Directory names such as a date or an instrument become virtual columns, so a <code>where</code> on them prunes whole partitions, and Parquet row groups are pruned too. The point for this document is what stays the same: <code>select … where date=…, sym=…</code> reads exactly as it does against a classic <code>date/table/column</code> HDB.</p>
+    <p>That makes it an architecture question, not a grammar one: a layout partitioned by date <i>and</i> sym, and intraday data written straight to disk and queried beside history. It gets a document of its own; until then, start with Data Intellect's <a href="https://dataintellect.com/blog/virtual-table-starter-pack/">Virtual Table Starter Pack</a>, their <a href="https://github.com/DataIntellectTech/TorQ-Virtual-Tables">TorQ-Virtual-Tables</a> overlay, and KX's <a href="https://code.kx.com/kdb-x/modules/parquet/reference.html">Parquet reference</a>.</p>
+  </div>
+</section>
+
+<!-- ───────────── WHAT BREAKS ───────────── -->
+<section class="part" id="breaks">
+  <h2>What Breaks When You Upgrade</h2>
+  <p class="lead">Every NUC in this document on one page, in the order you would meet them going from 3.x to KDB-X. The <i>symptom</i> column is the useful one: a parse error tells you where it is, a changed result does not.</p>
+  <div class="tbl"><table class="wide">
+    <thead><tr><th>Since</th><th>Change</th><th>Symptom</th><th>Fix</th><th>Lab</th></tr></thead>
+    <tbody>
+      <tr><td><span class="tag v40">4.0</span></td><td>a <code>select</code> column named like a group</td><td><code>dup names for cols/groups</code> at parse</td><td>rename: <code>by g:a</code></td><td><a href="#lab-c1">C1</a></td></tr>
+      <tr><td><span class="tag v40">4.0</span></td><td><code>lj</code> right side must be keyed</td><td>error on an unkeyed table</td><td><code>1!</code> or <code>xkey</code> it</td><td><a href="#lab-c1">C1</a></td></tr>
+      <tr><td><span class="tag v40">4.0</span></td><td>aggregates over <code>by</code> on atoms; <code>by</code> length must match</td><td>a different number</td><td>check any <code>select … by</code> on an atom</td><td><a href="#lab-c1">C1</a></td></tr>
+      <tr><td><span class="tag v41">4.1</span></td><td><code>value</code> in <code>select</code>/<code>exec</code> reads globals</td><td>a different number, silently</td><td>pass locals as arguments</td><td><a href="#lab-c1">C1</a></td></tr>
+      <tr><td><span class="tag v41">4.1</span></td><td><code>update … by</code> on a dictionary</td><td><code class="errtag">'type</code></td><td>drop the <code>by</code></td><td><a href="#lab-c1">C1</a></td></tr>
+      <tr><td><span class="tag v41">4.1</span></td><td><code>([]a::e)</code></td><td><code class="errtag">'parse</code></td><td>assign <code>a</code> first</td><td><a href="#lab-b4">B4</a></td></tr>
+      <tr><td><span class="tag v41">4.1</span></td><td>assigning to <code>do</code>, <code>exit</code>, <code>if[…]</code>; <code>():1</code></td><td><code class="errtag">'assign</code>, <code class="errtag">'match</code> at parse</td><td>rename</td><td><a href="#lab-b4">B4</a></td></tr>
+      <tr><td><span class="tag v41">4.1</span></td><td>projection with too many arguments, <code>{x}[;1]</code></td><td><code class="errtag">'rank</code></td><td>fix the arity</td><td><a href="#lab-b4">B4</a></td></tr>
+      <tr><td><span class="tag v41">4.1</span></td><td><code>.z.W</code> returns <code>handles!bytes</code></td><td>monitoring shows sums, not lists</td><td><code>sum each .z.W</code> works on both</td><td>—</td></tr>
+      <tr><td><span class="tag v41">4.1</span></td><td>handles inside <code>peach</code></td><td><code class="errtag">'nosocket</code></td><td>one-shot queries instead</td><td>—</td></tr>
+      <tr><td><span class="tag v41">4.1</span></td><td><code>.Q.id</code> on atoms and duplicate column names</td><td>different sanitised names</td><td>check generated column names</td><td><a href="#lab-a2">A2</a></td></tr>
+      <tr><td><span class="tag vX">KDB-X</span></td><td>float→int out of range, <code>div</code> by zero</td><td><code>0Ni</code> instead of <code>0i</code> on ARM</td><td>handle nulls</td><td><a href="#lab-c2">C2</a></td></tr>
+      <tr><td><span class="tag vX">KDB-X</span></td><td><code>.Q.lim[]</code> returns a dictionary</td><td>positional indexing breaks</td><td>index by key</td><td><a href="#lab-a2">A2</a></td></tr>
+      <tr><td><span class="tag vX">KDB-X</span></td><td>the empty path <code>`:</code> is invalid</td><td>operations that accepted it now refuse it</td><td><code>`:.</code></td><td>—</td></tr>
+      <tr><td><span class="tag vX">KDB-X</span></td><td><code>-16!x</code> returns a long</td><td>a type check on <code>-6h</code> fails</td><td>compare as long</td><td><a href="#lab-c2">C2</a></td></tr>
+      <tr><td><span class="tag vX">KDB-X</span></td><td><code>QINIT</code> not loaded under protected evaluation; SQL interface (<code>s.k_</code>) a separate download</td><td>startup differs</td><td>see the release notes</td><td>—</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3 id="rules"><span class="n">·</span>Four Rules</h3>
+  <div class="rules">
+    <div class="rule"><div class="rn">1</div><div><h4>Check at the boundary</h4><p>A filter in a parameter list runs before the body and a failed pattern assigns nothing. Put the checks where data enters, <code>upd</code>, an API, a config loader, and the rest of the code can trust what it is given.</p></div></div>
+    <div class="rule"><div class="rn">2</div><div><h4>Use the dictionary literal</h4><p><code>([a:1])</code> over <code>enlist[`a]!enlist 1</code>; options as one dictionary argument over positional flags. But keys must be names, and a duplicate key is renamed, not refused.</p></div></div>
+    <div class="rule"><div class="rn">3</div><div><h4>Qualify across namespaces</h4><p>A global binds where the function is defined. Define from the root with full names, or with <code>q.ns)</code>; in a module, qualify qSQL function names with <code>.z.m</code>.</p></div></div>
+    <div class="rule"><div class="rn">4</div><div><h4>Read the NUCs for silent changes</h4><p>A parse error finds itself. The changes to fear are the ones that return a different number: <code>value</code> in qSQL, aggregates over <code>by</code>, casts that now return null.</p></div></div>
+  </div>
+</section>
+
+<!-- ───────────── REFERENCES ───────────── -->
+<section class="part" id="references">
+  <h2>References</h2>
+  <p class="lead">Release notes first, because every claim in the labs traces back to one of their entries; then the guides and talks that explain the grammar, and the modules this document uses or learns from.</p>
+  <div class="refs">
+    <div class="span" style="font-family:var(--display);font-variant-caps:small-caps;letter-spacing:.035em;font-weight:600;font-size:18px;color:var(--fg)">Release Notes</div>
+    <div class="refitem"><span class="rtag">KDB-X · KX</span><div><a href="https://code.kx.com/kdb-x/releases/release-notes-latest.html">KDB-X release notes</a><p>Every KDB-X build from the 2025 public previews to 5.0.20261023: modules, dictionary arguments, ordered guids, deletable namespaces, the numeric NUCs.</p></div></div>
+    <div class="refitem"><span class="rtag">4.1 · KX</span><div><a href="https://code.kx.com/q/releases/ChangesIn4.1/">Changes in 4.1</a><p>Dictionary literals, pattern matching, type checks and filter functions, and the 4.1 NUCs.</p></div></div>
+    <div class="refitem"><span class="rtag">4.1 · KX</span><div><a href="https://code.kx.com/q/releases/41/">kdb+ 4.1 release notes</a><p>The dated entries, including the later NUCs: <code>update … by</code> on a dictionary (2024.04.29), assignments refused at parse time (2025.11.25).</p></div></div>
+    <div class="refitem"><span class="rtag">4.0 · KX</span><div><a href="https://code.kx.com/q/releases/ChangesIn4.0/">Changes in 4.0</a><p>qSQL tightened, <code>lj</code>, <code>reval</code>, one-shot queries with a timeout.</p></div></div>
+    <div class="refitem"><span class="rtag">4.0 · KX</span><div><a href="https://code.kx.com/q/releases/40/">kdb+ 4.0 release notes</a><p>The dated entries behind 4.0's NUCs.</p></div></div>
+
+    <div class="span" style="font-family:var(--display);font-variant-caps:small-caps;letter-spacing:.035em;font-weight:600;font-size:18px;margin-top:10px;color:var(--fg)">The Grammar</div>
+    <div class="refitem"><span class="rtag">reference · KX</span><div><a href="https://code.kx.com/q/basics/pattern/">Pattern matching</a><p>Every kind of pattern, the pattern conditional, and the dictionary type-check trap in lab B2.</p></div></div>
+    <div class="refitem"><span class="rtag">book · KX</span><div><span style="color:var(--fg);font-weight:600">Borror, J. A.</span> <a href="https://code.kx.com/kdb-x/learn/q4m/5_Dictionaries.html">Q for Mortals 4.1, §5 Dictionaries</a><p>Dictionary definition syntax, keys from variables, duplicate keys, dictionary patterns.</p></div></div>
+    <div class="refitem"><span class="rtag">book · KX</span><div><span style="color:var(--fg);font-weight:600">Borror, J. A.</span> <a href="https://code.kx.com/kdb-x/learn/q4m/12_Workspace_Organization.html">Q for Mortals 4.1, §12 Workspace Organization</a><p>Definition-time binding of globals, <code>\d</code> one level deep, the advice to qualify everything.</p></div></div>
+    <div class="refitem"><span class="rtag">reference · KX</span><div><a href="https://code.kx.com/kdb-x/ref/namespaces.html">Namespaces (KDB-X)</a><p>Globals retain the namespace a function was defined in; the <code>q.ns)</code> prefix.</p></div></div>
+    <div class="refitem"><span class="rtag">guide · KX</span><div><a href="https://code.kx.com/kdb-x/how_to/basics/data_structures/dictionaries.html">How to work with dictionaries (KDB-X)</a><p>Literal syntax beside Python's, and why it matters most for singletons.</p></div></div>
+    <div class="refitem"><span class="rtag">blog · KX</span><div><span style="color:var(--fg);font-weight:600">Woods, M.</span> <a href="https://kx.com/blog/discover-kdb-4-1s-new-features/">Discover kdb+ 4.1's New Features</a><p>The release announcement: literals, patterns, filters, and the <code>fluxCapacitor</code> example.</p></div></div>
+    <div class="refitem"><span class="rtag">video</span><div><a href="https://www.youtube.com/watch?v=z1sGo3hZ1AE">YouTube: z1sGo3hZ1AE</a><p>Transcript pending; title and summary to follow.</p></div></div>
+    <div class="refitem"><span class="rtag">video</span><div><a href="https://www.youtube.com/watch?v=amLvHevLh-I">YouTube: amLvHevLh-I</a><p>Transcript pending; title and summary to follow.</p></div></div>
+
+    <div class="span" style="font-family:var(--display);font-variant-caps:small-caps;letter-spacing:.035em;font-weight:600;font-size:18px;margin-top:10px;color:var(--fg)">Modules</div>
+    <div class="refitem"><span class="rtag">framework · KX</span><div><a href="https://code.kx.com/kdb-x/modules/module-framework/quickstart.html">Get started with the module framework</a><p><code>use</code>, <code>export</code>, <code>.z.m</code> and <code>.z.M</code>, the search path, reserved names, submodules, and the qSQL lookup rule.</p></div></div>
+    <div class="refitem"><span class="rtag">module · KX</span><div><a href="https://code.kx.com/kdb-x/modules/os/os.html">OS module (kx.os)</a><p>Environment, sleep and subprocesses; lab M1.</p></div></div>
+    <div class="refitem"><span class="rtag">module · KX</span><div><a href="https://code.kx.com/kdb-x/modules/datagen/overview.html">Datagen module</a><p>Reproducible synthetic capital-markets data; the feed for lab M4.</p></div></div>
+    <div class="refitem"><span class="rtag">module · KX</span><div><a href="https://github.com/KxSystems/unit-test">Unit Test module (kx.test)</a><p>Assertions, hooks, mocks and JUnit output; the tests for <code>tick.cfg</code> and <code>tick.check</code>.</p></div></div>
+    <div class="refitem"><span class="rtag">index · KX</span><div><a href="https://code.kx.com/kdb-x/modules/module-index.html">KDB-X modules overview</a><p>KX's modules and the open-source ones: Datagen, Taq, DBmaint, Printf, Logging, Unit Test, ax, Fusionx.</p></div></div>
+    <div class="refitem"><span class="rtag">module · KX</span><div><a href="https://code.kx.com/kdb-x/modules/parquet/reference.html">Parquet module reference (kx.pq, kx.pq.t)</a><p>Virtual tables over Parquet: <code>mkP</code>, virtual columns, the hidden <code>RG__</code> row-group column.</p></div></div>
+    <div class="refitem"><span class="rtag">tutorial · KX</span><div><a href="https://kx.com/blog/tutorial-integrating-parquet-format-data-with-kdb-x/">Integrating Parquet format data with KDB-X</a><p>Querying Parquet from q and SQL, with partition and row-group pruning. See also KX's <a href="https://github.com/KxSystems/tutorials/blob/main/KDB-X/Modules/parquet.md">Parquet tutorial</a>.</p></div></div>
+    <div class="refitem"><span class="rtag">blog · DI</span><div><a href="https://dataintellect.com/blog/virtual-table-starter-pack/">Virtual Table Starter Pack</a><p>Custom directory layouts, such as date and sym, as one queryable table; with <a href="https://github.com/DataIntellectTech/TorQ-Virtual-Tables">TorQ-Virtual-Tables</a> and <a href="https://dataintellect.com/blog/parquet-storage-and-virtual-tables-in-kdb-x/">Parquet storage and virtual tables in KDB-X</a>.</p></div></div>
+    <div class="refitem"><span class="rtag">tp · KX</span><div><a href="https://github.com/KxSystems/kdb-tick">KxSystems/kdb-tick</a><p>The vanilla <code>tick.q</code>, <code>u.q</code> and <code>r.q</code> that <code>tickx.q</code> and <code>tick.pubsub</code> are diffed against.</p></div></div>
+    <div class="refitem"><span class="rtag">blog</span><div><span style="color:var(--fg);font-weight:600">Kane, J.</span> <a href="https://jkane17.github.io/blog/q/kdbx_modules.html">KDB-X modules</a><p>Building <code>clap</code>, a command-line parser, as a module: <code>export</code>, caching and <code>.Q.m.reuse</code>, <code>.z.m.parse</code>. Prior art for <code>tick.cfg</code>.</p></div></div>
+    <div class="refitem"><span class="rtag">blog · DI</span><div><span style="color:var(--fg);font-weight:600">Press, J.</span> <a href="https://dataintellect.com/blog/kdb-x-modules-community-effort/">KDB-X modules: a community effort</a><p>Data Intellect's plan to build reusable, tested modules in public, starting from TorQ.</p></div></div>
+    <div class="refitem"><span class="rtag">repo · DI</span><div><a href="https://github.com/DataIntellectTech/kdbx-modules">DataIntellectTech/kdbx-modules</a><p>The <code>di.</code> modules, the code-docs-tests layout this repository follows, and the <a href="https://github.com/DataIntellectTech/kdbx-modules/discussions/categories/ideas">ideas board</a>, where no pub/sub, config or validation module had been proposed.</p></div></div>
+  </div>
+</section>
+
+<footer>
+  <span class="ok">kdb-nouvelle</span> · the grammar q gained from kdb+ 4.0 to KDB-X, labbed on KDB-X. Companion to <a href="https://rohanshiloh.github.io/order-trade-lifecycle/"><i>The Order &amp; Trade Lifecycle</i></a>, <a href="https://rohanshiloh.github.io/exec-tca-stack/"><i>Anatomy of a Fill</i></a> and <a href="https://rohanshiloh.github.io/tickerplant.ai/"><i>Sharded Ticks</i></a>.
+</footer>
+</div>
+<a class="totop" href="#contents">↑ Contents</a>
+
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themebtn'), order=['auto','light','dark'];
+  function get(){try{return localStorage.getItem('b3x-theme')||'auto'}catch(e){return 'auto'}}
+  function apply(t){ if(t==='auto'){root.removeAttribute('data-theme')}else{root.setAttribute('data-theme',t)} if(btn)btn.textContent='Theme: '+t; }
+  var cur=get(); if(cur!=='auto')apply(cur);
+  if(btn)btn.addEventListener('click',function(){cur=order[(order.indexOf(cur)+1)%3];apply(cur);try{localStorage.setItem('b3x-theme',cur)}catch(e){}});
+  var eb=document.getElementById('expandbtn');
+  if(eb)eb.addEventListener('click',function(){var d=document.querySelectorAll('details.srcfile'),open=eb.textContent.indexOf('Expand')===0;
+    for(var i=0;i<d.length;i++)d[i].open=open; eb.textContent=open?'Collapse all files':'Expand all files';});
+})();
+</script>
+<script>
+/* q syntax highlighting: keywords from the q language files, minus this stack's column names */
+(function(){
+  var KW=new Set("abs acos aj aj0 ajf ajf0 all and any asc asin asof atan attr avg avgs bin by ceiling cols cor cos count cov cross csv cut delete deltas desc dev differ distinct div do dsave each ej ema enlist eval except exec exit exp fby fills first fkeys flip floor from get getenv group gtime hclose hcount hdel hopen hsym iasc idesc if ij ijf in insert inter inv key keys last like lj load log lower lsq ltime ltrim mavg max maxs mcount md5 mdev med meta min mins mmax mmin mmu mod msum neg next not null or over parse peach pj plist prd prds prev prior rand rank ratios raze read0 read1 reciprocal reval reverse rload rotate rsave rtrim save scan scov sdev select set setenv show signum sin sqrt ss ssr sublist sum sums sv svar system tables tan til trim type uj ujf ungroup union update upper upsert value var view views vs wavg where while within wj wj1 wsum ww xasc xbar xcol xcols xdesc xexp xgroup xkey xlog xprev xrank".split(" "));
+  var RE=/("(?:\\.|[^"\\])*")|((?:^|(?<=[ \t]))\/(?![:\\]).*)|(^q\)+)|(`[\w.:\/]*)|((?<![\w`])\.[A-Za-z]\w*(?:\.\w+)*)|((?<![\w.`])-?\d[\w:.]*)|((?<![\w.`])[a-z]\w*)|(^\\\w*)|([!#$%&*+,\-<=>?@^_|~:'\/\\.]+)|([\[\]{}();])/gm;
+  var CLS=[null,"s","c","p","y","z","d","k","z","o","b"];  /* o: operators and iterators, b: brackets */
+  function hl(node){
+    var t=node.nodeValue, out=document.createDocumentFragment(), last=0, m, hit=false; RE.lastIndex=0;
+    while((m=RE.exec(t))){
+      var g=1; while(g<CLS.length && m[g]===undefined) g++;
+      if(g===7 && !KW.has(m[0])) continue;
+      if(m.index>last) out.appendChild(document.createTextNode(t.slice(last,m.index)));
+      var sp=document.createElement("span"); sp.className=CLS[g]; sp.textContent=m[0]; out.appendChild(sp);
+      last=m.index+m[0].length; hit=true;
+      if(m[0].length===0) RE.lastIndex++;
+    }
+    if(!hit) return;
+    if(last<t.length) out.appendChild(document.createTextNode(t.slice(last)));
+    node.parentNode.replaceChild(out,node);
+  }
+  document.querySelectorAll(".code pre, .out pre .pq").forEach(function(pre){
+    var first=pre.textContent.replace(/^\s+/,"").split("\n")[0];
+    if(/^(#!|---|mkdir|\$ |exec-tca-stack\/|cd |git |printf )/.test(first)) return;
+    var w=document.createTreeWalker(pre,NodeFilter.SHOW_TEXT,{acceptNode:function(n){return n.parentNode.closest(".c,.s,.k,.y,.z,.d,.p,.o,.b")?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT}});
+    var ns=[]; while(w.nextNode()) ns.push(w.currentNode); ns.forEach(hl);
+  });
+})();
+</script>
+<script>
+document.documentElement.lang='en';
+document.querySelectorAll('.code').forEach(function(box){
+  var b=document.createElement('button');b.type='button';b.textContent='Copy';box.appendChild(b);
+  b.addEventListener('click',function(){
+    var pre=box.querySelector('pre'),t=pre.innerText;
+    var done=function(){b.textContent='Copied';setTimeout(function(){b.textContent='Copy'},1400)};
+    var sel=function(){var r=document.createRange();r.selectNodeContents(pre);var s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Selected'};
+    try{navigator.clipboard.writeText(t).then(done,sel)}catch(e){sel()}
+  });
+});
+</script>
+</body></html>

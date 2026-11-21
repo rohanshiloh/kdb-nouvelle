@@ -1,0 +1,32 @@
+/ 5 2026.10.23 m64
+/ M2 · writing a module: tick.cfg (KDB-X)
+q)cfg:use`tick.cfg
+q)key cfg
+`load`cast`env`cli
+q)spec:([port:5010;logdir:`:./log;tables:`trade`quote;pubMs:100])
+'assign
+q)cfg.load spec
+'spec
+/ the environment overrides a default, and is parsed to the default's type
+q)setenv[`TICK_PORT;"6010"]
+q)cfg.load spec
+'spec
+/ take only what you need with a dictionary pattern
+q)([port;tables]):cfg.load spec
+'spec
+q)port
+'port
+/ a value that does not parse is refused by name
+q)setenv[`TICK_PORT;"oops"]
+q)cfg.load spec
+'spec
+/ setenv with :: unsets (KDB-X 2026.10.15)
+q)setenv[`TICK_PORT;::]
+q)cfg.load[spec]`port
+'spec
+/ load's parameter filter refuses anything that is not a spec
+q)cfg.load 1 2 3
+'cfg: a spec is a dictionary of defaults
+/ load is a keyword: a plain load:{…} is refused, so the module defines .z.m.load
+q)load:{x}
+'assign

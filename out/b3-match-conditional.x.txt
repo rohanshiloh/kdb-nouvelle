@@ -1,0 +1,20 @@
+/ 5 2026.10.23 m64
+/ B3 · the pattern conditional :[v;p1;r1;…;rd] (4.1)
+q)a: :[1i;r:`f;"float";r:`i;"int";"other"]
+q)a
+"int"
+/ the first pattern that matches wins; later branches are never evaluated
+q)kind:{:[x;r:`s;"sym";r:`j;"long";r:`F;"floats";"other"]}
+q)kind each (`a;1;1 2f;"x")
+"sym"
+"long"
+"floats"
+"other"
+/ a dictionary pattern as a branch: route a message by its shape
+q)route:{:[x;([px:p:`f;sz:s:`j]);`trade;([bid:b:`f;ask:k:`f]);`quote;`unknown]}
+q)route ([px:182.4;sz:100])
+`trade
+q)route ([bid:182.4;ask:182.42])
+`quote
+q)route ([foo:1])
+`unknown

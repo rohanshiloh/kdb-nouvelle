@@ -1,0 +1,50 @@
+/ 5 2026.10.23 m64
+/ A1 · dictionary literals (4.1)
+/ the 4.0 way, and the 4.1 way
+q)enlist[`aaa]!enlist 123
+aaa| 123
+q)([aaa:123])
+aaa| 123
+q)([aaa:123])~enlist[`aaa]!enlist 123
+1b
+q)([a:100;b:200;c:300])
+a| 100
+b| 200
+c| 300
+/ bare names take key and value from variables of the same name
+q)a:10
+q)b:20
+q)([a;b])
+a| 10
+b| 20
+/ the empty dictionary has symbol keys
+q)([])~(`symbol$())!()
+1b
+/ an omitted value makes a projection
+q)d:([a:101;b:])
+q)d 102
+a| 101
+b| 102
+q)d each`AA`BB`CC
+a   b 
+------
+101 AA
+101 BB
+101 CC
+q)([k1:;k2:])[1;"a"]
+k1| 1
+k2| "a"
+/ edge cases: implicit keys, duplicate keys, non-symbol keys
+q)([0;1;2])
+x | 0
+x1| 1
+x2| 2
+q)([a:10;b:20;a:40])
+a | 10
+b | 20
+a1| 40
+q)([10:`a;20:`b])
+'type
+/ order is part of a dictionary
+q)([a:1;b:2])~([b:2;a:1])
+0b
