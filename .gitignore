@@ -3,8 +3,12 @@ vendor/
 # tickerplant logs and per-process logs from lab M4
 log/
 out/*.log
+# transcripts: inputs to build.py, already inside index.html
+out/*.txt
+out/.prev/
 out/junit-*.xml
 .DS_Store
 # local scratch, not part of the document
 Claude outputs/
 /5710
+Beyond*.html

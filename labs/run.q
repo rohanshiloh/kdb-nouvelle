@@ -2,13 +2,16 @@
 / usage:  q labs/run.q labs/a1-dict-literals.q -q </dev/null
 / Reads a lab file and runs it line by line, printing each line as the console
 / would show it ("q)" then the result, or "'" then the error). Comment lines
-/ starting "/ " are printed as they are.
+/ starting "/ " are printed as they are. Lines starting "/<" are the documented
+/ behaviour before the change (build.py's Before column) and are skipped here.
 / Written in pre-4.1 syntax on purpose: the same runner has to work on 4.0, 4.1
 / and KDB-X, and a lab line that only parses on a newer version must fail as
 / that line, not take the runner down with it.
 
 \c 40 160
--1 "/ ",(string .z.K)," ",(string .z.k)," ",string .z.o;
+/ the header names the q that ran the lab and a hash of the lab file, so
+/ build.py can tell when a transcript no longer matches its lab
+-1 "/ ",(string .z.K)," ",(string .z.k)," ",(string .z.o)," · lab ",8#raze string md5 "c"$read1 hsym `$first .z.x;
 
 / an assignment prints nothing at the console; neither does it here
 .lab.isAsg:{@[{(:)~first parse x};x;0b]}
@@ -25,5 +28,5 @@
 
 .lab.L:read0 hsym `$first .z.x;
 .lab.L:.lab.L where 0<count each .lab.L;
-{$["/"=first x; -1 x; .lab.run x]} each .lab.L;
+{$["/<"~2#x; (); "/"=first x; -1 x; .lab.run x]} each .lab.L;
 \\

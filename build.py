@@ -9,9 +9,13 @@ src/body.html holds the prose. These markers are replaced:
   <!--FILE:path-->   a source file, in a copyable pane
   <!--DIFF:a|b-->    a unified diff of two files (skipped if a is missing)
   <!--TEST:name-->   a unit-test report from out/test-<name>.x.txt
+A lab file carries its own Before column: under a line of q, "/< text" says what
+that line did before the change, per KX's release notes; "/<< text" is a note
+about the whole lab. The runner skips both.
 Transcripts come from labs/run.q via run-labs.sh. Where the two versions give
 a different result for the same line, both results are highlighted.
 """
+import hashlib
 import difflib, html, os, re
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -71,13 +75,35 @@ def render(bl, other):
     return "\n".join(rows)
 
 
-def pane(cls, label, text, other_bl, how="./run-labs.sh"):
+STALE = []
+
+
+def stale(name, out):
+    """A transcript made from a different version of its lab no longer shows what the lab says.
+    run.q writes "lab <md5>" in the header; transcripts without it fall back to file times."""
+    src, o = P("labs/%s.q" % name), P(out)
+    if not (os.path.exists(src) and os.path.exists(o)):
+        return False
+    with open(o, encoding="utf-8", errors="replace") as f:
+        m = re.search(r"· lab ([0-9a-f]{8})", f.readline())
+    if m:
+        with open(src, "rb") as f:
+            old = hashlib.md5(f.read()).hexdigest()[:8] != m.group(1)
+    else:
+        old = os.path.getmtime(src) > os.path.getmtime(o)
+    if old:
+        STALE.append(out)
+    return old
+
+
+def pane(cls, label, text, other_bl, how="./run-labs.sh", old=False):
     if text is None:
         return ('<div class="out %s"><div class="vh"><b>%s</b><span>not yet run</span></div>'
                 '<div class="pend">Run <code>%s</code> to fill this column.</div></div>' % (cls, label, how))
     head, bl = blocks(text)
+    head = '<span class="stale">stale: rerun the lab</span>' if old else esc(head)
     return ('<div class="out %s"><div class="vh"><b>%s</b><span>%s</span></div><pre>%s</pre></div>'
-            % (cls, label, esc(head), render(bl, other_bl)))
+            % (cls, label, head, render(bl, other_bl)))
 
 
 def labsrc(name):
@@ -86,25 +112,43 @@ def labsrc(name):
             % (name, esc(src.rstrip("\n"))))
 
 
+def before(name):
+    """The documented behaviour before each change, from the lab's own /< lines."""
+    src = read("labs/%s.q" % name)
+    if src is None or "\n/<" not in src:
+        return None
+    rows, last = ["/ not run"], None
+    for ln in src.split("\n"):
+        if ln.startswith("/<< "):
+            rows.append("/ " + ln[4:])
+        elif ln.startswith("/< "):
+            if last is not None:
+                rows.append("q)" + last)
+                last = None
+            rows.append(ln[3:])
+        elif ln and not ln.startswith("/"):
+            last = ln
+    return "\n".join(rows) + "\n"
+
+
 def lab(name):
     """Left: a kdb+ 4.x transcript if one was run, else the documented behaviour
-    before each change (labs/before/), taken from KX's release notes."""
+    before each change, from the lab's own /< lines (KX's release notes)."""
     t4, tx = read("out/%s.4x.txt" % name), read("out/%s.x.txt" % name)
-    if t4 is None and read("labs/before/%s.txt" % name) is not None:
-        t4 = "/ documented, not run\n" + read("labs/before/%s.txt" % name)
-        label = "Before · KX release notes"
+    if t4 is None and before(name) is not None:
+        t4, label = before(name), "Previous behaviour · documented"
     else:
         label = "kdb+ 4.x"
     b4 = blocks(t4)[1] if t4 else None
     bx = blocks(tx)[1] if tx else None
     return ('<div class="cmds"><div class="outs">%s%s</div>%s</div>'
-            % (pane("v4", label, t4, bx), pane("vx", "KDB-X", tx, b4), labsrc(name)))
+            % (pane("v4", label, t4, bx), pane("vx", "KDB-X", tx, b4, old=stale(name, "out/%s.x.txt" % name)), labsrc(name)))
 
 
 def mlab(name):
     tx = read("out/%s.x.txt" % name)
     how = "labs/m4-pubsub.sh" if name == "m4-pubsub" else "./run-labs.sh"
-    return '<div class="cmds"><div class="outs one">%s</div>%s</div>' % (pane("vx", "KDB-X", tx, None, how), labsrc(name))
+    return '<div class="cmds"><div class="outs one">%s</div>%s</div>' % (pane("vx", "KDB-X", tx, None, how, old=stale(name, "out/%s.x.txt" % name)), labsrc(name))
 
 
 def filepane(path):
@@ -149,6 +193,8 @@ def main():
         f.write(page)
     ran = sorted(f for f in os.listdir(P("out")) if f.endswith(".txt")) if os.path.isdir(P("out")) else []
     print("wrote index.html (%d transcripts in out/)" % len(ran))
+    for o in STALE:
+        print("  stale: %s was made from an older version of its lab; rerun it" % o)
 
 
 if __name__ == "__main__":

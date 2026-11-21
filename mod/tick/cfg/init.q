@@ -1,8 +1,8 @@
 / tick.cfg : typed configuration from defaults, the environment and the command line
 
 /   cfg:use`tick.cfg
-/   c:cfg.load ([port:5010;logdir:(`:./log);tables:`trade`quote])
-/   ([port;tables]):cfg.load spec                / take just what you need
+/   c:cfg.load ([port:5010;logdir:`:./log;tabs:`trade`quote])
+/   ([port;tabs]):cfg.load spec                  / take just what you need
 
 / A spec is a dictionary literal of defaults. The TYPE of each default is the type
 / the setting must have: strings from the environment or the command line are

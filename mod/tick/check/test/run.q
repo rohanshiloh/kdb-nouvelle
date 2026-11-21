@@ -5,6 +5,7 @@ t:use`kx.test;
 t.runFile`:mod/tick/check/test/check.q;
 r:t.getReport[];
 show r;
-show select status:count i by status from r;
-x:t.junitReport r; `:out/junit-check.xml 0: $[10h=type x; enlist x; x];
+show select n:count i by status from r;   / not status:count i by status: a 4.0 NUC
+x:t.junitReport r; (hsym`$"out/junit-check.xml") 0: $[10h=type x; enlist x; x];
+/ not `:out/junit-check.xml: a symbol literal stops at "-", leaving -check.xml as a minus
 \\

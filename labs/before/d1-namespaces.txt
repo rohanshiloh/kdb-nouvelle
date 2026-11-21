@@ -1,4 +1,0 @@
-/ No release note changes how a global name is looked up, so there is no
-/ documented "before" for the first eight lines. The one new feature:
-q)delete foo from `
-— new: a top-level namespace can be deleted (KDB-X 2026.10.15)

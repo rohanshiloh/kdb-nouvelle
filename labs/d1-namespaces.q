@@ -1,4 +1,6 @@
 / D1 · where a global name is looked up
+/<< No release note changes how a global name is looked up, so there is no
+/<< documented "before" for the first eight lines. The one new feature:
 mult:4
 \d .foo
 mult:3
@@ -27,4 +29,5 @@ key `.a
 \d .
 / a whole namespace can be deleted (KDB-X 2026.10.15)
 delete foo from `
+/< — new: a top-level namespace can be deleted (KDB-X 2026.10.15)
 `foo in key `

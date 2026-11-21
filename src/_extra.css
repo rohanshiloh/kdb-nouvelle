@@ -35,4 +35,16 @@ code.errtag,.out pre .er{font-family:var(--mono);color:var(--bad);background:var
 .code .z,.out pre .z{color:var(--lav)}
 .out pre .pq{color:var(--fg)} .out pre .pq .p{color:var(--accent)}
 .out pre .pq .k{color:var(--s0);font-weight:600} .out pre .pq .y{color:var(--s1)} .out pre .pq .s{color:var(--ok)} .out pre .pq .d{color:var(--sig)}
+.out .vh .stale{color:var(--bad);font-weight:600}
+/* the kind of change: filled, so they read apart from the outlined version tags */
+.tag.kS,.tag.kN,.tag.kC,.tag.kM{border-color:transparent;color:#fff;font-weight:600}
+.tag.kS{background:var(--muted)} .tag.kN{background:var(--s0)} .tag.kC{background:var(--ok)} .tag.kM{background:var(--sig)}
+.kinds{display:flex;flex-direction:column;gap:5px;margin-top:4px} .kinds span.tag{align-self:flex-start}
+/* mini-diagrams in the margin */
+.mnote.mini svg{display:block;width:100%;height:auto;margin-top:6px}
+/* readability: ragged-right prose reads better around inline code; larger code and transcripts */
+.abstract,p,li,figcaption{text-align:left;hyphens:manual}
+.code pre{font-size:13px;line-height:1.6}
+.out pre{font-size:13px;line-height:1.6}
+@media (max-width:560px){.code pre,.out pre{font-size:12px}}
 </style>

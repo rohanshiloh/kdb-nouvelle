@@ -264,11 +264,23 @@ code.errtag,.out pre .er{font-family:var(--mono);color:var(--bad);background:var
 .code .z,.out pre .z{color:var(--lav)}
 .out pre .pq{color:var(--fg)} .out pre .pq .p{color:var(--accent)}
 .out pre .pq .k{color:var(--s0);font-weight:600} .out pre .pq .y{color:var(--s1)} .out pre .pq .s{color:var(--ok)} .out pre .pq .d{color:var(--sig)}
+.out .vh .stale{color:var(--bad);font-weight:600}
+/* the kind of change: filled, so they read apart from the outlined version tags */
+.tag.kS,.tag.kN,.tag.kC,.tag.kM{border-color:transparent;color:#fff;font-weight:600}
+.tag.kS{background:var(--muted)} .tag.kN{background:var(--s0)} .tag.kC{background:var(--ok)} .tag.kM{background:var(--sig)}
+.kinds{display:flex;flex-direction:column;gap:5px;margin-top:4px} .kinds span.tag{align-self:flex-start}
+/* mini-diagrams in the margin */
+.mnote.mini svg{display:block;width:100%;height:auto;margin-top:6px}
+/* readability: ragged-right prose reads better around inline code; larger code and transcripts */
+.abstract,p,li,figcaption{text-align:left;hyphens:manual}
+.code pre{font-size:13px;line-height:1.6}
+.out pre{font-size:13px;line-height:1.6}
+@media (max-width:560px){.code pre,.out pre{font-size:12px}}
 </style>
 <div class="sheet">
 <header>
   <div class="titleblock"><div class="kicker">A Companion: The Language</div><h1>Beyond 3.x — Syntax &amp; Semantics<span class="subtitle">New Grammar for an Old Language</span></h1><div class="byline"><a href="https://rohanshiloh.github.io/kdb-nouvelle/" style="color:inherit;text-decoration:none">rohanshiloh.github.io/kdb-nouvelle</a></div></div>
-  <div class="meta">kdb+ 4.0 · 4.1 · KDB-X 5.0<br>~/Code/kdb-nouvelle<br>syntax &amp; NUCs only<br><button class="themebtn" id="themebtn" type="button" aria-label="Switch colour theme">Theme: auto</button></div>
+  <div class="meta">kdb+ 4.0 2020.03.17 · 4.1 2024.02.13 <span title="the Before column is built from these release notes">(release notes)</span><br>KDB-X 5.0 2026.10.23 (labs run)<br>~/Code/kdb-nouvelle<br><span style="white-space:nowrap">sugar · new syntax · new capability · semantic change</span><br><button class="themebtn" id="themebtn" type="button" aria-label="Switch colour theme">Theme: auto</button></div>
 </header>
 
 <p class="abstract">Between kdb+ 3.6 and KDB-X, q gained more new grammar than in the previous decade: dictionary literals, assignments that take values apart and check them on the way in, functions that refuse bad arguments before their body runs, and a module system with its own rules for names. It also became stricter, and some code that ran for years now stops with an error. This document covers only that: the syntax, and the changes that break code. Every claim is a lab, run on KDB-X and set beside what KX's release notes say the same line did before, so you can see exactly what changed and when.</p>
@@ -290,7 +302,27 @@ code.errtag,.out pre .er{font-family:var(--mono);color:var(--bad);background:var
   <p class="companion">Companion to the trilogy: <a href="https://rohanshiloh.github.io/order-trade-lifecycle/">The Order &amp; Trade Lifecycle</a>, <a href="https://rohanshiloh.github.io/exec-tca-stack/">Anatomy of a Fill</a> and <a href="https://rohanshiloh.github.io/tickerplant.ai/">Sharded Ticks</a> use this grammar; this document explains it.</p>
   <h3 id="intro-why"><span class="n">1</span>Why It Matters</h3>
   <p class="lead">For most of its life, q had one way to build a dictionary (<code>k!v</code>), one way to assign (<code>name:value</code>) and one way to check an argument (by hand, in the body).<span class="mnote"><b>NUC.</b> Not upwardly compatible: KX's term for a change after which some existing code behaves differently or stops working. Every NUC in this document is tagged.</span> kdb+ 4.1 changed all three. A dictionary now has a literal form, <code>([a:1;b:2])</code>. The left side of <code>:</code> can be a <i>pattern</i> that takes a value apart, checks its types and transforms it, and a failed match assigns nothing at all. The same patterns work in a parameter list, so a function can refuse a bad argument before its body runs. KDB-X then added modules: code with a private namespace, loaded with <code>use</code> and given whatever name the caller chooses.</p>
-  <p class="lead">The new syntax is not decoration. A tickerplant's <code>upd</code> that checks its table name in the parameter list cannot log a message for a table that does not exist; a config loader that types its settings by pattern cannot start a process on port <code>0N</code>. The other half of the story is that q became stricter. Some of what 3.x accepted is now an error, often at parse time, and some results changed quietly. The <a href="#breaks">checklist</a> at the end lists every one.</p>
+  <p class="lead"><span class="mnote mini"><b>The same check, moved.</b>
+<svg viewBox="0 0 240 236" role="img" aria-label="Two versions of upd. In 3.x the checks are statements in the body: if not t in tables, signal; if the count is wrong, signal; then insert. In 4.1 the table check is a filter in the parameter list and the row check is a pattern on the first line, so the body is only the insert.">
+  <g font-family="Schibsted Grotesk,sans-serif" font-size="10" font-weight="600"><text x="0" y="12" fill="var(--muted)">3.x · checks in the body</text><text x="0" y="132" fill="var(--s0)">4.1 · checks in the contract</text></g>
+  <rect x="0" y="18" width="240" height="96" rx="4" fill="var(--code-bg)" stroke="var(--line)"/>
+  <g font-family="JetBrains Mono,monospace" font-size="9.4" fill="var(--fg)">
+    <text x="7" y="34">upd:{[t;x]</text>
+    <text x="7" y="49">  if[not t in tables`.;'`table];</text>
+    <text x="7" y="64">  if[4&lt;&gt;count x;'`length];</text>
+    <text x="7" y="79">  if[-7h&lt;&gt;type x 3;'`type];</text>
+    <text x="7" y="94">  …one line per rule…</text>
+    <text x="7" y="109">  t insert x}</text>
+  </g>
+  <rect x="0" y="138" width="240" height="60" rx="4" fill="var(--s0-bg)" stroke="var(--s0)"/>
+  <g font-family="JetBrains Mono,monospace" font-size="9.4" fill="var(--fg)">
+    <text x="7" y="155">upd:{[t:chk.table;x]</text>
+    <text x="7" y="170">  (x:chk.schema t):x;</text>
+    <text x="7" y="185">  t insert x}</text>
+  </g>
+  <text x="0" y="214" font-family="Schibsted Grotesk,sans-serif" font-size="9.6" fill="var(--muted)">Same rules; the second refuses a bad table</text>
+  <text x="0" y="228" font-family="Schibsted Grotesk,sans-serif" font-size="9.6" fill="var(--muted)">before its body runs. Lab M3 runs it.</text>
+</svg></span>The new syntax is not decoration. A tickerplant's <code>upd</code> that checks its table name in the parameter list cannot log a message for a table that does not exist; a config loader that types its settings by pattern cannot start a process on port <code>0N</code>. The other half of the story is that q became stricter. Some of what 3.x accepted is now an error, often at parse time, and some results changed quietly. The <a href="#breaks">checklist</a> at the end lists every one.</p>
 
   <figure id="fig-timeline">
     <div class="fig">
@@ -302,10 +334,10 @@ code.errtag,.out pre .er{font-family:var(--mono);color:var(--bad);background:var
     <text x="90" y="56" font-size="10.5" fill="var(--muted)" font-family="JetBrains Mono,monospace">2018</text>
     <circle cx="300" cy="70" r="7" fill="var(--sheet)" stroke="var(--sh)" stroke-width="2"/>
     <text x="300" y="40" font-size="14" font-weight="600" fill="var(--sh)">kdb+ 4.0</text>
-    <text x="300" y="56" font-size="10.5" fill="var(--muted)" font-family="JetBrains Mono,monospace">2020.03.17</text>
+    <text x="300" y="56" font-size="10.5" fill="var(--muted)" font-family="JetBrains Mono,monospace">first release 2020.03.17</text>
     <circle cx="560" cy="70" r="7" fill="var(--sheet)" stroke="var(--s0)" stroke-width="2"/>
     <text x="560" y="40" font-size="14" font-weight="600" fill="var(--s0)">kdb+ 4.1</text>
-    <text x="560" y="56" font-size="10.5" fill="var(--muted)" font-family="JetBrains Mono,monospace">2024.02.13</text>
+    <text x="560" y="56" font-size="10.5" fill="var(--muted)" font-family="JetBrains Mono,monospace">first release 2024.02.13</text>
     <circle cx="820" cy="70" r="7" fill="var(--sheet)" stroke="var(--s1)" stroke-width="2"/>
     <text x="820" y="40" font-size="14" font-weight="600" fill="var(--s1)">KDB-X 5.0</text>
     <text x="820" y="56" font-size="10.5" fill="var(--muted)" font-family="JetBrains Mono,monospace">GA 2025.11.17</text>
@@ -340,11 +372,11 @@ code.errtag,.out pre .er{font-family:var(--mono);color:var(--bad);background:var
   </g>
 </svg>
     </div>
-    <figcaption><b>Three releases.</b> 4.0 tightened what already existed; 4.1 is where the grammar itself grew; KDB-X added modules and turned several settings that were lists or flags into dictionaries. The red counts are the NUCs in the <a href="#breaks">checklist</a>, by release.</figcaption>
+    <figcaption><b>Three releases.</b> 4.0 tightened what already existed; 4.1 is where the grammar itself grew; KDB-X added modules and turned several settings that were lists or flags into dictionaries. The dates are first releases; each line kept receiving dated updates afterwards, and some NUCs arrived in them (4.1's <code>update … by</code> in 2024.04.29, its assignment guards in 2025.11.25). The red counts are the NUCs in the <a href="#breaks">checklist</a>, by the line that carries them.</figcaption>
   </figure>
 
   <h3 id="intro-read"><span class="n">2</span>How to Read a Lab</h3>
-  <p class="lead">Each syntax lab runs one script, <code>labs/&lt;name&gt;.q</code>, through a runner that prints what the console would. The left column is the argument. On the right, the <b>KDB-X</b> column is that transcript, exactly as printed. Beside it, <b>Before</b> is what the same lines did before the change, taken from KX's release notes and marked <i>documented, not run</i>: KX no longer issues kdb+ 4.x licences for personal use, so the old behaviour is cited rather than reproduced. Where a line's result changed, both are <span class="difflegend"><i>highlighted</i></span>; a line that is simply new says when it arrived. With a kdb+ 4.x licence, <code>Q4=… ./run-labs.sh</code> replaces the Before column with a real transcript. The tags under each title say which release introduced what the lab shows: <span class="tag v40">4.0</span> <span class="tag v41">4.1</span> <span class="tag vX">KDB-X</span> <span class="tag vNUC">NUC</span>.</p>
+  <p class="lead"><span class="mnote"><b>Syntax and semantics.</b> Syntax is what you can write; semantics is what it means. Every lab is tagged with the kind of change it shows:<span class="kinds"><span><span class="tag kS">Sugar</span> a new form, old meaning: a new way to write what you could already write.</span><span><span class="tag kN">New syntax</span> a new form with a new guarantee, such as a match that binds all or nothing.</span><span><span class="tag kC">New capability</span> something q could not do before.</span><span><span class="tag kM">Semantic change</span> the same code with a new meaning: every silent NUC, and every corrected wrong answer.</span><span><span class="tag vNUC">NUC</span> marks what can break code that already runs.</span></span></span>Each syntax lab runs one script, <code>labs/&lt;name&gt;.q</code>, through a runner that prints what the console would. The left column is the argument. On the right, the <b>KDB-X</b> column is that transcript, exactly as printed. Beside it, <b>Previous behaviour</b> is what the same lines did before the change, taken from KX's release notes and marked <i>not run</i>: KX no longer issues kdb+ 4.x licences for personal use, so the old behaviour is cited rather than reproduced. Where a line's result changed, both are <span class="difflegend"><i>highlighted</i></span>; a line that is simply new says when it arrived. With a kdb+ 4.x licence, <code>Q4=… ./run-labs.sh</code> replaces that column with a real transcript. Under each title, the filled tags say what kind of change the lab shows, and the outlined ones which release brought it: <span class="tag v40">4.0</span> <span class="tag v41">4.1</span> <span class="tag vX">KDB-X</span>.</p>
   <p>Module labs have one transcript, because modules exist only in KDB-X. To reproduce any of it, clone the repository, run <code>./setup.sh</code> once, then <code>QX=… ./run-labs.sh</code>; the page rebuilds itself from the new transcripts.</p>
   <div class="code"><pre>git clone https://github.com/rohanshiloh/kdb-nouvelle &amp;&amp; cd kdb-nouvelle
 ./setup.sh                                        <span class="c"># vendor kdb-tick, install kx.test</span>
@@ -359,15 +391,15 @@ QX=~/.kx/bin/q ./run-labs.sh                      <span class="c"># every lab on
   <div class="lab lab3" id="lab-a1">
     <div class="notes">
       <h3><span class="n">A1</span>Dictionary Literals</h3>
-      <div class="vtags"><span class="tag v41">4.1</span></div>
+      <div class="vtags"><span class="tag kS">Sugar</span><span class="tag v41">4.1</span></div>
       <p><code>([k:v;…])</code> is a dictionary with symbol keys, and <code>~</code> to the <code>!</code> form. The win is largest for one key, where <code>enlist[`a]!enlist 1</code> becomes <code>([a:1])</code>, and for building a dictionary from variables, <code>([a;b])</code>.</p>
       <p>An omitted value, <code>([a:101;b:])</code>, is a projection waiting for it: apply it to a list of values with <code>each</code> and you get a table, one row per value.</p>
       <p class="warn">Keys must be valid q names, so <code>([10:`a])</code> is <code class="errtag">'type</code>; use <code>!</code> for anything else. A <b>duplicate</b> key is not an error: q renames it (<code>a</code>, <code>a1</code>), so a typo silently adds a key. And a file handle as a value needs parentheses: in <code>([log:`:./log])</code> the <code>`:</code> reads as the start of an assignment and the line fails with <code class="errtag">'assign</code>; <code>([log:(`:./log)])</code> works.</p>
     </div>
-    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Before · KX release notes</b><span>documented, not run</span></div><pre><span class="pc">/ Dictionary literals are new in 4.1 (Changes in 4.1, &quot;Dictionary literals&quot;).</span>
+    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Previous behaviour · documented</b><span>not run</span></div><pre><span class="pc">/ Dictionary literals are new in 4.1 (Changes in 4.1, &quot;Dictionary literals&quot;).</span>
 <span class="pc">/ Before 4.1, every line below except the first used syntax that did not exist.</span>
 <span class="pq">q)enlist[`aaa]!enlist 123</span>
-aaa| 123</pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ A1 · dictionary literals (4.1)</span>
+aaa| 123</pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64 · lab 2ca1bb04</span></div><pre><span class="pc">/ A1 · dictionary literals (4.1)</span>
 <span class="pc">/ the 4.0 way, and the 4.1 way</span>
 <span class="pq">q)enlist[`aaa]!enlist 123</span>
 aaa| 123
@@ -413,11 +445,22 @@ b | 20
 a1| 40
 <span class="pq">q)([10:`a;20:`b])</span>
 <span class="er">&#x27;type</span>
+<span class="pc">/ a key cannot be a reserved word: log and tables are q&#x27;s own names</span>
+<span class="pq">q)([log:1])</span>
+<span class="er">&#x27;assign</span>
+<span class="pq">q)([tables:`trade`quote])</span>
+<span class="er">&#x27;assign</span>
+<span class="pq">q)([logdir:`:./log;tabs:`trade`quote])</span>
+logdir| `:./log
+tabs  | `trade`quote
 <span class="pc">/ order is part of a dictionary</span>
 <span class="pq">q)([a:1;b:2])~([b:2;a:1])</span>
 0b</pre></div></div><details class="labsrc"><summary>Show labs/a1-dict-literals.q</summary><div class="code"><pre>/ A1 · dictionary literals (4.1)
+/&lt;&lt; Dictionary literals are new in 4.1 (Changes in 4.1, &quot;Dictionary literals&quot;).
+/&lt;&lt; Before 4.1, every line below except the first used syntax that did not exist.
 / the 4.0 way, and the 4.1 way
 enlist[`aaa]!enlist 123
+/&lt; aaa| 123
 ([aaa:123])
 ([aaa:123])~enlist[`aaa]!enlist 123
 ([a:100;b:200;c:300])
@@ -436,9 +479,10 @@ d each`AA`BB`CC
 ([0;1;2])
 ([a:10;b:20;a:40])
 ([10:`a;20:`b])
-/ a file handle as a value needs parentheses: `: reads as the start of an assignment
-([log:`:./log])
-([log:(`:./log)])
+/ a key cannot be a reserved word: log and tables are q&#x27;s own names
+([log:1])
+([tables:`trade`quote])
+([logdir:`:./log;tabs:`trade`quote])
 / order is part of a dictionary
 ([a:1;b:2])~([b:2;a:1])</pre></div></details></div>
   </div>
@@ -446,11 +490,11 @@ d each`AA`BB`CC
   <div class="lab lab3" id="lab-a2">
     <div class="notes">
       <h3><span class="n">A2</span>Dictionaries as Arguments</h3>
-      <div class="vtags"><span class="tag v41">4.1</span><span class="tag vX">KDB-X</span><span class="tag vNUC">NUC</span></div>
+      <div class="vtags"><span class="tag kC">New capability</span><span class="tag kM">Semantic change</span><span class="tag v41">4.1</span><span class="tag vX">KDB-X</span><span class="tag vNUC">NUC</span></div>
       <p>Once a dictionary is cheap to write, it becomes the natural way to pass options and get back structured answers. KDB-X uses it that way: <code>xcol</code> and <code>xcols</code> now rename and reorder dictionary keys, <code>.Q.ipc[h;([z:0b])]</code> takes its options as one, and <code>.Q.lim[]</code> returns one.</p>
       <p class="warn"><code>.Q.lim</code> changing its result to a dictionary is a NUC (KDB-X 2026.04.10): code that indexed its old result by position breaks.</p>
     </div>
-    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Before · KX release notes</b><span>documented, not run</span></div><pre><span class="pc">/ Each line uses something added after 4.1 shipped.</span>
+    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Previous behaviour · documented</b><span>not run</span></div><pre><span class="pc">/ Each line uses something added after 4.1 shipped.</span>
 <span class="pq">q).Q.id[`b`b1``in!2 3 4 5]</span>
 — new: .Q.id on dictionaries (4.1 2024.09.13)
 <span class="pq">q)([a:`c;b:`d]) xcol ([a:10;b:20])</span>
@@ -460,7 +504,7 @@ d each`AA`BB`CC
 <span class="pq">q)&quot;J&quot;$([a:&quot;1&quot;;b:&quot;2&quot;])</span>
 <span class="dl">— wrong result when every value was a string (fixed KDB-X 2026.10.02)</span>
 <span class="pq">q)type .Q.lim[]</span>
-<span class="dl">— .Q.lim was not a dictionary before KDB-X 2026.04.10 (NUC)</span></pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ A2 · dictionaries as arguments (4.1 · KDB-X)</span>
+<span class="dl">— .Q.lim was not a dictionary before KDB-X 2026.04.10 (NUC)</span></pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64 · lab 34d511f7</span></div><pre><span class="pc">/ A2 · dictionaries as arguments (4.1 · KDB-X)</span>
 <span class="pc">/ .Q.id sanitises dictionary keys (4.1 2024.09.13)</span>
 <span class="pq">q).Q.id[`b`b1``in!2 3 4 5]</span>
 b  | 2
@@ -482,15 +526,21 @@ b| 2
 <span class="pc">/ settings that used to be lists or flags are now dictionaries</span>
 <span class="pq">q)type .Q.lim[]</span>
 <span class="dl">99h</span></pre></div></div><details class="labsrc"><summary>Show labs/a2-dict-arguments.q</summary><div class="code"><pre>/ A2 · dictionaries as arguments (4.1 · KDB-X)
+/&lt;&lt; Each line uses something added after 4.1 shipped.
 / .Q.id sanitises dictionary keys (4.1 2024.09.13)
 .Q.id[`b`b1``in!2 3 4 5]
+/&lt; — new: .Q.id on dictionaries (4.1 2024.09.13)
 / xcol renames and xcols reorders the keys of a dictionary (KDB-X 2026.10.23)
 ([a:`c;b:`d]) xcol ([a:10;b:20])
+/&lt; — new: xcol with a dictionary (KDB-X 2026.10.23)
 `c xcols ([a:1;b:2;c:3])
+/&lt; — new: xcols with a dictionary (KDB-X 2026.10.23)
 / casting a dictionary whose values are all strings (fixed KDB-X 2026.10.02)
 &quot;J&quot;$([a:&quot;1&quot;;b:&quot;2&quot;])
+/&lt; — wrong result when every value was a string (fixed KDB-X 2026.10.02)
 / settings that used to be lists or flags are now dictionaries
-type .Q.lim[]</pre></div></details></div>
+type .Q.lim[]
+/&lt; — .Q.lim was not a dictionary before KDB-X 2026.04.10 (NUC)</pre></div></details></div>
   </div>
 </section>
 
@@ -501,7 +551,7 @@ type .Q.lim[]</pre></div></details></div>
 
   <figure id="fig-pattern">
     <div class="fig">
-<svg viewBox="0 0 980 330" role="img" aria-label="The anatomy of one pattern assignment. The pattern on the left, a list, contains five parts: a name with a type check, a dictionary pattern that matches one key, a filter function that adds ten, an empty item that matches anything, and a constant that must match exactly. Step one checks the whole value against the pattern: a wrong type signals type, a wrong constant signals match, a wrong length signals length. Only if every part matches does step two run the filters and assign the names. The expression returns the whole value, filters included.">
+<svg viewBox="0 0 980 352" role="img" aria-label="The anatomy of one pattern assignment. The pattern on the left, a list, contains five parts: a name with a type check, a dictionary pattern that matches one key, a filter function that adds ten, an empty item that matches anything, and a constant that must match exactly. Step one walks the pattern and the value together: a filter runs as it is reached and its result is what is matched; a wrong type signals type, a wrong constant signals match, a wrong length signals length, and a filter can signal its own error. Only if every part matches does step two bind the names. The expression returns the whole value, filters included.">
   <defs><marker id="pa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
   <text x="40" y="28" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--muted)" letter-spacing=".06em">ONE ASSIGNMENT, FIVE KINDS OF PATTERN</text>
   <g font-family="JetBrains Mono,monospace" font-size="17" text-anchor="middle">
@@ -525,41 +575,44 @@ type .Q.lim[]</pre></div></details></div>
     <text x="521" y="108" fill="var(--muted)" font-weight="600">null</text><text x="521" y="122" fill="var(--muted)">anything</text>
     <text x="586" y="108" fill="var(--sh)" font-weight="600">constant</text><text x="586" y="122" fill="var(--muted)">must ~</text>
   </g>
-  <rect x="40" y="150" width="440" height="150" rx="6" fill="var(--sheet)" stroke="var(--line)"/>
-  <text x="58" y="174" font-family="Schibsted Grotesk,sans-serif" font-size="13" font-weight="600" fill="var(--fg)">1 · check the whole value</text>
+  <rect x="40" y="150" width="440" height="172" rx="6" fill="var(--sheet)" stroke="var(--line)"/>
+  <text x="58" y="174" font-family="Schibsted Grotesk,sans-serif" font-size="13" font-weight="600" fill="var(--fg)">1 · match, part by part</text>
   <g font-family="Schibsted Grotesk,sans-serif" font-size="11.5" fill="var(--fg)">
-    <text x="58" y="200">a wrong type</text><text x="250" y="200" font-family="JetBrains Mono,monospace" fill="var(--bad)">'type</text>
-    <text x="58" y="222">a constant that does not ~</text><text x="250" y="222" font-family="JetBrains Mono,monospace" fill="var(--bad)">'match</text>
-    <text x="58" y="244">a list of the wrong length</text><text x="250" y="244" font-family="JetBrains Mono,monospace" fill="var(--bad)">'length</text>
-    <text x="58" y="266">a filter that signals</text><text x="250" y="266" font-family="JetBrains Mono,monospace" fill="var(--bad)">its own error</text>
-    <text x="58" y="288" fill="var(--muted)">any of these: nothing is assigned</text>
+    <text x="58" y="198" fill="var(--sig)">a filter runs as it is reached; its result is what is matched</text>
+    <text x="58" y="222">a wrong type</text><text x="250" y="222" font-family="JetBrains Mono,monospace" fill="var(--bad)">'type</text>
+    <text x="58" y="244">a constant that does not ~</text><text x="250" y="244" font-family="JetBrains Mono,monospace" fill="var(--bad)">'match</text>
+    <text x="58" y="266">a list of the wrong length</text><text x="250" y="266" font-family="JetBrains Mono,monospace" fill="var(--bad)">'length</text>
+    <text x="58" y="288">a filter that signals</text><text x="250" y="288" font-family="JetBrains Mono,monospace" fill="var(--bad)">its own error</text>
+    <text x="58" y="310" fill="var(--muted)">any of these: no name is bound</text>
   </g>
-  <path d="M480 225 H540" stroke="currentColor" stroke-width="1.2" marker-end="url(#pa)"/>
-  <text x="510" y="216" text-anchor="middle" font-family="Schibsted Grotesk,sans-serif" font-size="10.5" fill="var(--muted)">all pass</text>
-  <rect x="548" y="150" width="392" height="150" rx="6" fill="var(--ok-bg)" stroke="var(--ok)"/>
-  <text x="566" y="174" font-family="Schibsted Grotesk,sans-serif" font-size="13" font-weight="600" fill="var(--ok)">2 · run the filters, then assign</text>
+  <path d="M480 236 H540" stroke="currentColor" stroke-width="1.2" marker-end="url(#pa)"/>
+  <text x="510" y="227" text-anchor="middle" font-family="Schibsted Grotesk,sans-serif" font-size="10.5" fill="var(--muted)">all fit</text>
+  <rect x="548" y="150" width="392" height="172" rx="6" fill="var(--ok-bg)" stroke="var(--ok)"/>
+  <text x="566" y="174" font-family="Schibsted Grotesk,sans-serif" font-size="13" font-weight="600" fill="var(--ok)">2 · bind the names</text>
   <g font-family="JetBrains Mono,monospace" font-size="12" fill="var(--fg)">
-    <text x="566" y="202">sym → `AAPL      p → d`px</text>
-    <text x="566" y="224">n   → 15</text>
+    <text x="566" y="202">sym → `AAPL      p → d`px</text>
+    <text x="566" y="224">n   → 15   <tspan font-family="Schibsted Grotesk,sans-serif" font-size="11" fill="var(--muted)">(10+ already applied)</tspan></text>
   </g>
-  <text x="566" y="256" font-family="Schibsted Grotesk,sans-serif" font-size="11.5" fill="var(--fg)">the expression returns the whole value,</text>
-  <text x="566" y="272" font-family="Schibsted Grotesk,sans-serif" font-size="11.5" fill="var(--fg)">filters included: <tspan font-family="JetBrains Mono,monospace">(`AAPL;d;15;x;1b)</tspan></text>
+  <text x="566" y="262" font-family="Schibsted Grotesk,sans-serif" font-size="11.5" fill="var(--fg)">the expression returns the whole value,</text>
+  <text x="566" y="278" font-family="Schibsted Grotesk,sans-serif" font-size="11.5" fill="var(--fg)">filters included: <tspan font-family="JetBrains Mono,monospace">(`AAPL;d;15;x;1b)</tspan></text>
+  <text x="566" y="306" font-family="Schibsted Grotesk,sans-serif" font-size="11" fill="var(--muted)">binding is all or nothing; side effects are not undone</text>
 </svg>
     </div>
-    <figcaption><b>Anatomy of a pattern.</b> Every kind of pattern in one assignment. Matching is all-or-nothing: q checks the whole value first, and assigns only when every part fits, so a pattern can guard a variable the way a type guards a column. The same patterns go in a parameter list, where they guard a function.</figcaption>
+    <figcaption><b>Anatomy of a pattern.</b> Every kind of pattern in one assignment. q walks the pattern and the value together; a filter runs when it is reached, and its <i>result</i> is what is matched and later bound, which is how a filter can convert as well as check. Binding is all or nothing: only when every part fits are any names bound, so a pattern can guard a variable the way a type guards a column. What it cannot do is undo a filter's side effects. The same patterns go in a parameter list, where they guard a function.</figcaption>
   </figure>
 
   <div class="lab lab3" id="lab-b1">
     <div class="notes">
       <h3><span class="n">B1</span>Destructuring</h3>
-      <div class="vtags"><span class="tag v41">4.1</span></div>
+      <div class="vtags"><span class="tag kN">New syntax</span><span class="tag v41">4.1</span></div>
       <p>A list pattern takes a list apart by position, a dictionary pattern by key, a table pattern by column. An empty item matches anything; a constant must match exactly, and is how a pattern says “only if this is a fill”.</p>
-      <p>Watch <code>y</code>: it was <code>`untouched</code> before the failed match and is still <code>`untouched</code> after it. That is the guarantee.</p>
+      <p>Watch <code>y</code>: it was <code>`untouched</code> before the failed match and is still <code>`untouched</code> after it. That is the guarantee: a failed match binds no names. It is not a transaction, though: a filter that wrote to a log before a later part failed has still written.</p>
+      <p>A dictionary pattern takes the keys it names and ignores the rest. That makes a consumer tolerant of fields added later, and it also means the pattern does not check the whole message.</p>
       <p class="notice">Only <code>!</code> and <code>flip</code> may appear as operators in a pattern, because they are the two that can be undone: <code>(m!n):d</code> takes a dictionary apart into keys and values.</p>
     </div>
-    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Before · KX release notes</b><span>documented, not run</span></div><pre><span class="pc">/ Pattern matching, type checks, filter functions and the pattern</span>
+    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Previous behaviour · documented</b><span>not run</span></div><pre><span class="pc">/ Pattern matching, type checks, filter functions and the pattern</span>
 <span class="pc">/ conditional are new in 4.1 (Changes in 4.1, &quot;Pattern matching&quot;;</span>
-<span class="pc">/ release notes 2024.02.02). Before 4.1 none of these lines parse as shown.</span></pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ B1 · destructuring assignment (4.1)</span>
+<span class="pc">/ release notes 2024.02.02). Before 4.1 none of these lines parse as shown.</span></pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64 · lab c876e3f5</span></div><pre><span class="pc">/ B1 · destructuring assignment (4.1)</span>
 <span class="pc">/ a list pattern</span>
 <span class="pq">q)(b;c):(2;3)</span>
 <span class="pq">q)b</span>
@@ -607,6 +660,9 @@ type .Q.lim[]</pre></div></details></div>
 1 3
 <span class="pq">q)r</span>
 1</pre></div></div><details class="labsrc"><summary>Show labs/b1-patterns.q</summary><div class="code"><pre>/ B1 · destructuring assignment (4.1)
+/&lt;&lt; Pattern matching, type checks, filter functions and the pattern
+/&lt;&lt; conditional are new in 4.1 (Changes in 4.1, &quot;Pattern matching&quot;;
+/&lt;&lt; release notes 2024.02.02). Before 4.1 none of these lines parse as shown.
 / a list pattern
 (b;c):(2;3)
 b
@@ -645,14 +701,14 @@ r</pre></div></details></div>
   <div class="lab lab3" id="lab-b2">
     <div class="notes">
       <h3><span class="n">B2</span>Types &amp; Filters</h3>
-      <div class="vtags"><span class="tag v41">4.1</span></div>
+      <div class="vtags"><span class="tag kN">New syntax</span><span class="tag v41">4.1</span></div>
       <p><code>name:`s</code> checks a type: lower case for an atom, upper case for a list. A <b>filter function</b>, <code>x:f</code>, is applied to the value first and the result is what gets matched and assigned, so a filter can validate (<code>tempCheck</code> signals), convert (<code>10+</code>), or both. <code>chkVals</code> does both and changes the type on the way: <code>sumVals</code> is called with a string and its body sees a list of longs, or never runs at all.</p>
       <p>In a parameter list the same patterns guard a function: <code>fluxCapacitor</code> refuses a non-float speed before its body runs, and <code>{[x;]x}</code> marks the second argument as unused.</p>
       <p class="warn">The trap is the last three lines. Inside a dictionary pattern, <code>k:`s</code> is the <i>constant</i> <code>`s</code>, matched against the value; the type check needs a name in front, <code>k:k:`s</code>. KX's own reference spells this out because everyone gets it wrong once.</p>
     </div>
-    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Before · KX release notes</b><span>documented, not run</span></div><pre><span class="pc">/ Pattern matching, type checks, filter functions and the pattern</span>
+    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Previous behaviour · documented</b><span>not run</span></div><pre><span class="pc">/ Pattern matching, type checks, filter functions and the pattern</span>
 <span class="pc">/ conditional are new in 4.1 (Changes in 4.1, &quot;Pattern matching&quot;;</span>
-<span class="pc">/ release notes 2024.02.02). Before 4.1 none of these lines parse as shown.</span></pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ B2 · type checks and filter functions (4.1)</span>
+<span class="pc">/ release notes 2024.02.02). Before 4.1 none of these lines parse as shown.</span></pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64 · lab d0005051</span></div><pre><span class="pc">/ B2 · type checks and filter functions (4.1)</span>
 <span class="pc">/ a type check: lower case for an atom, upper case for a list</span>
 <span class="pq">q)(name:`s;age:`h):(`homer;38h)</span>
 <span class="pq">q)(name:`s;age:`h):(`marge;36.5)</span>
@@ -687,11 +743,21 @@ r</pre></div></details></div>
 <span class="pq">q)addv[10;([k:`hello;v:1 2 3])]</span>
 k| `hello
 v| 1 12 103
+<span class="pc">/ a filter can change the type: the parameter arrives as a string, the body sees longs</span>
+<span class="pq">q)chkVals:{$[any null x:&quot;J&quot;$&quot;,&quot;vs x;&#x27;`badData;x]}</span>
+<span class="pq">q)sumVals:{[x:chkVals]sum x}</span>
+<span class="pq">q)sumVals &quot;1,1,2,3,5,8&quot;</span>
+20
+<span class="pq">q)sumVals &quot;8,4,2,1,0.5&quot;</span>
+<span class="er">&#x27;badData</span>
 <span class="pc">/ the trap: inside a dictionary pattern, k:`s is a constant, not a type check</span>
 <span class="pq">q)([k:k:`s]):([k:`hello])</span>
 <span class="pq">q)([k:`s]):([k:`hello])</span>
 <span class="er">&#x27;match</span>
 <span class="pq">q)([k:`s]):([k:`s])</span></pre></div></div><details class="labsrc"><summary>Show labs/b2-types-filters.q</summary><div class="code"><pre>/ B2 · type checks and filter functions (4.1)
+/&lt;&lt; Pattern matching, type checks, filter functions and the pattern
+/&lt;&lt; conditional are new in 4.1 (Changes in 4.1, &quot;Pattern matching&quot;;
+/&lt;&lt; release notes 2024.02.02). Before 4.1 none of these lines parse as shown.
 / a type check: lower case for an atom, upper case for a list
 (name:`s;age:`h):(`homer;38h)
 (name:`s;age:`h):(`marge;36.5)
@@ -715,6 +781,11 @@ c2f -4.5
 a,b,c
 addv:{([v:(;:x+;:(x*10)+)]):y}
 addv[10;([k:`hello;v:1 2 3])]
+/ a filter can change the type: the parameter arrives as a string, the body sees longs
+chkVals:{$[any null x:&quot;J&quot;$&quot;,&quot;vs x;&#x27;`badData;x]}
+sumVals:{[x:chkVals]sum x}
+sumVals &quot;1,1,2,3,5,8&quot;
+sumVals &quot;8,4,2,1,0.5&quot;
 / the trap: inside a dictionary pattern, k:`s is a constant, not a type check
 ([k:k:`s]):([k:`hello])
 ([k:`s]):([k:`hello])
@@ -724,13 +795,13 @@ addv[10;([k:`hello;v:1 2 3])]
   <div class="lab lab3" id="lab-b3">
     <div class="notes">
       <h3><span class="n">B3</span>The Pattern Conditional</h3>
-      <div class="vtags"><span class="tag v41">4.1</span></div>
-      <p><code>:[v;p1;r1;p2;r2;…;default]</code> matches <code>v</code> against each pattern in turn and returns the result beside the first that fits. Only that result is evaluated.</p>
+      <div class="vtags"><span class="tag kS">Sugar</span><span class="tag v41">4.1</span></div>
+      <p><code>:[v;p1;r1;p2;r2;…;default]</code> matches <code>v</code> against each pattern in turn and returns the result beside the first that fits. Only that result is evaluated, and order matters: put specific patterns before general ones, or a general branch takes messages meant for a later one.</p>
       <p>Where <code>$[…]</code> asks a question of a value, <code>:[…]</code> asks what <i>shape</i> it has. <code>route</code> sends a message by the keys it carries, which is the dispatch every feed handler writes by hand.</p>
     </div>
-    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Before · KX release notes</b><span>documented, not run</span></div><pre><span class="pc">/ Pattern matching, type checks, filter functions and the pattern</span>
+    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Previous behaviour · documented</b><span>not run</span></div><pre><span class="pc">/ Pattern matching, type checks, filter functions and the pattern</span>
 <span class="pc">/ conditional are new in 4.1 (Changes in 4.1, &quot;Pattern matching&quot;;</span>
-<span class="pc">/ release notes 2024.02.02). Before 4.1 none of these lines parse as shown.</span></pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ B3 · the pattern conditional :[v;p1;r1;…;rd] (4.1)</span>
+<span class="pc">/ release notes 2024.02.02). Before 4.1 none of these lines parse as shown.</span></pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64 · lab a63c0df0</span></div><pre><span class="pc">/ B3 · the pattern conditional :[v;p1;r1;…;rd] (4.1)</span>
 <span class="pq">q)a: :[1i;r:`f;&quot;float&quot;;r:`i;&quot;int&quot;;&quot;other&quot;]</span>
 <span class="pq">q)a</span>
 &quot;int&quot;
@@ -749,6 +820,9 @@ addv[10;([k:`hello;v:1 2 3])]
 `quote
 <span class="pq">q)route ([foo:1])</span>
 `unknown</pre></div></div><details class="labsrc"><summary>Show labs/b3-match-conditional.q</summary><div class="code"><pre>/ B3 · the pattern conditional :[v;p1;r1;…;rd] (4.1)
+/&lt;&lt; Pattern matching, type checks, filter functions and the pattern
+/&lt;&lt; conditional are new in 4.1 (Changes in 4.1, &quot;Pattern matching&quot;;
+/&lt;&lt; release notes 2024.02.02). Before 4.1 none of these lines parse as shown.
 a: :[1i;r:`f;&quot;float&quot;;r:`i;&quot;int&quot;;&quot;other&quot;]
 a
 / the first pattern that matches wins; later branches are never evaluated
@@ -764,12 +838,12 @@ route ([foo:1])</pre></div></details></div>
   <div class="lab lab3" id="lab-b4">
     <div class="notes">
       <h3><span class="n">B4</span>Caught at Parse Time</h3>
-      <div class="vtags"><span class="tag v41">4.1</span><span class="tag vNUC">NUC</span></div>
-      <p>Making the left side of <code>:</code> a grammar meant deciding what it may <i>not</i> contain. Each line here was accepted before, or did something surprising; now each is refused when the code is read, not when it runs, which means a script with one of them in a function that is never called still fails to load.</p>
-      <p class="warn"><code>([]a::e)</code> used to amend a global <code>a</code> while building a column; it is now <code class="errtag">'parse</code>. <code>do:1</code> and an assignment to <code>if[…]</code> are <code class="errtag">'assign</code> (4.1 2025.11.25). <code>{x}[;1]</code>, a projection with more arguments than the function takes, is <code class="errtag">'rank</code>.</p>
+      <div class="vtags"><span class="tag kM">Semantic change</span><span class="tag v41">4.1</span><span class="tag vNUC">NUC</span></div>
+      <p>Making the left side of <code>:</code> a grammar meant deciding what it may <i>not</i> contain. Each line here was accepted before, or did something surprising; now most are refused when the code is parsed, before anything runs, which means a script with one of them in a function that is never called still fails to load. That is the useful difference from a filter's error, which is raised only when a bad value arrives.</p>
+      <p class="warn"><code>([]a::e)</code> used to amend a global <code>a</code> while building a column; it is now <code class="errtag">'parse</code>. <code>do:1</code> and an assignment to <code>if[…]</code> are <code class="errtag">'assign</code> (4.1 2025.11.25). <code>{x}[;1]</code>, a projection with more arguments than the function takes, is <code class="errtag">'rank</code> when the projection is made, not later when it is called.</p>
       <p class="notice"><code>exit:1</code> is also <code class="errtag">'assign</code> now, but it is left out of the lab: on a version that accepts it, the runner could no longer exit.</p>
     </div>
-    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Before · KX release notes</b><span>documented, not run</span></div><pre><span class="pc">/ What each line did before 4.1, per the release notes.</span>
+    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Previous behaviour · documented</b><span>not run</span></div><pre><span class="pc">/ What each line did before 4.1, per the release notes.</span>
 <span class="pq">q)([]a::e)</span>
 <span class="dl">— amended the global a, with an implicit column name (NUC, 4.1 2024.02.02)</span>
 <span class="pq">q)f:{[x+y]x}</span>
@@ -781,7 +855,7 @@ route ([foo:1])</pre></div></details></div>
 <span class="pq">q){ if[a;1 2]:3 4 }</span>
 <span class="dl">— accepted; now &#x27;assign at parse time (NUC, 4.1 2025.11.25)</span>
 <span class="pq">q){x}[;1]</span>
-<span class="dl">— a projection; now &#x27;rank (4.1 2021.12.07)</span></pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ B4 · mistakes that are now caught when the code is read (4.1)</span>
+<span class="dl">— a projection; now &#x27;rank (4.1 2021.12.07)</span></pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64 · lab 69e2a726</span></div><pre><span class="pc">/ B4 · mistakes that are now caught when the code is read (4.1)</span>
 <span class="pc">/ each line below was accepted, or did something odd, before 4.1</span>
 <span class="pq">q)([]a::e)</span>
 <span class="er dl">&#x27;parse</span>
@@ -795,30 +869,37 @@ route ([foo:1])</pre></div></details></div>
 <span class="er dl">&#x27;assign</span>
 <span class="pq">q){x}[;1]</span>
 <span class="er dl">&#x27;rank</span></pre></div></div><details class="labsrc"><summary>Show labs/b4-parse-guards.q</summary><div class="code"><pre>/ B4 · mistakes that are now caught when the code is read (4.1)
+/&lt;&lt; What each line did before 4.1, per the release notes.
 / each line below was accepted, or did something odd, before 4.1
 ([]a::e)
+/&lt; — amended the global a, with an implicit column name (NUC, 4.1 2024.02.02)
 f:{[x+y]x}
+/&lt; — accepted; now &#x27;nyi when compiled (4.1 2024.03.12)
 ():1
+/&lt; — accepted; now &#x27;match (4.1 2024.03.12)
 do:1
+/&lt; — accepted; now &#x27;assign at parse time (NUC, 4.1 2025.11.25)
 { if[a;1 2]:3 4 }
-{x}[;1]</pre></div></details></div>
+/&lt; — accepted; now &#x27;assign at parse time (NUC, 4.1 2025.11.25)
+{x}[;1]
+/&lt; — a projection; now &#x27;rank (4.1 2021.12.07)</pre></div></details></div>
   </div>
 </section>
 
 <!-- ───────────── SEMANTICS ───────────── -->
-<section class="part" id="semantics">
+<section class="part annot" id="semantics">
   <h2>Stricter Semantics</h2>
-  <p class="lead">These are not new grammar but old grammar with new answers. They matter more than the new features, because a feature you do not use cannot hurt you, and a changed result in code you already run can.</p>
+  <p class="lead"><span class="mnote"><b>Why <code>value</code> changed.</b> A string handed to <code>value</code> is parsed and run when the line executes, and like any code run that way it has no access to the calling lambda's locals. Inside <code>select</code> and <code>exec</code> it could once see them, a quirk 4.1 removed. Nothing errors: the same query returns a different number. Refer to the local directly, or pass it in.</span>These are not new grammar but old grammar with new answers. They matter more than the new features, because a feature you do not use cannot hurt you, and a changed result in code you already run can.</p>
 
   <div class="lab lab3" id="lab-c1">
     <div class="notes">
       <h3><span class="n">C1</span>qSQL Tightened</h3>
-      <div class="vtags"><span class="tag v40">4.0</span><span class="tag v41">4.1</span><span class="tag vNUC">NUC</span></div>
+      <div class="vtags"><span class="tag kM">Semantic change</span><span class="tag v40">4.0</span><span class="tag v41">4.1</span><span class="tag vNUC">NUC</span></div>
       <p>4.0 made a column named like a group, <code>select a,b by a</code>, a parse error (<code>dup names for cols/groups</code>) instead of quietly renaming it; a column repeated among the columns is still renamed, as <code>a1</code>. It also made aggregates over a <code>by</code> agree for atoms, and made <code>lj</code> insist on a keyed table on the right.</p>
       <p>4.1 made <code>update … by</code> on a <i>dictionary</i> an error rather than ignoring the <code>by</code>, and fixed a scoping bug from 2.6: <code>value</code> inside <code>select</code> or <code>exec</code> now reads globals, so the lambda's local <code>a:1</code> is no longer seen.</p>
       <p class="warn">The <code>value</code> change is the dangerous one: no error, a different number. Search your code for <code>value"</code> inside qSQL.</p>
     </div>
-    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Before · KX release notes</b><span>documented, not run</span></div><pre><span class="pc">/ What each line did before the change, per the release notes.</span>
+    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Previous behaviour · documented</b><span>not run</span></div><pre><span class="pc">/ What each line did before the change, per the release notes.</span>
 <span class="pq">q)select a,b by a from t</span>
 <span class="dl">— a column named like a group was renamed automatically; now a parse error (NUC, 4.0 2019.11.04)</span>
 <span class="pq">q)first max select count 1b by x1 from ([]1 2 3;3 3 3)</span>
@@ -828,7 +909,7 @@ do:1
 <span class="pq">q)update a by b from dd</span>
 <span class="dl">— the by clause was ignored (NUC, 4.1 2024.04.29)</span>
 <span class="pq">q){a:1;exec value&quot;2*a&quot; from ([]``)}[]</span>
-<span class="dl">2</span></pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ C1 · qSQL tightened (4.0 · 4.1)</span>
+<span class="dl">2</span></pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64 · lab e7f511ca</span></div><pre><span class="pc">/ C1 · qSQL tightened (4.0 · 4.1)</span>
 <span class="pq">q)t:([]a:1 2 3;b:10 20 30;c:`x`y`x)</span>
 <span class="pc">/ a column named like a group is a parse error (4.0); a repeated column is renamed</span>
 <span class="pq">q)select a,b by a from t</span>
@@ -863,34 +944,45 @@ a b  c d
 <span class="pc">/ value inside exec reads globals, not the caller&#x27;s locals (4.1)</span>
 <span class="pq">q)a:0</span>
 <span class="pq">q){a:1;exec value&quot;2*a&quot; from ([]``)}[]</span>
-<span class="dl">0</span></pre></div></div><details class="labsrc"><summary>Show labs/c1-qsql-nucs.q</summary><div class="code"><pre>/ C1 · qSQL tightened (4.0 · 4.1)
+<span class="dl">0</span>
+<span class="pc">/ the safe form: refer to the local directly, or pass it in; no string to evaluate</span>
+<span class="pq">q){a:1;exec 2*a from ([]``)}[]</span>
+2</pre></div></div><details class="labsrc"><summary>Show labs/c1-qsql-nucs.q</summary><div class="code"><pre>/ C1 · qSQL tightened (4.0 · 4.1)
+/&lt;&lt; What each line did before the change, per the release notes.
 t:([]a:1 2 3;b:10 20 30;c:`x`y`x)
 / a column named like a group is a parse error (4.0); a repeated column is renamed
 select a,b by a from t
+/&lt; — a column named like a group was renamed automatically; now a parse error (NUC, 4.0 2019.11.04)
 select a,b by g:a from t
 select a,a by c from t
 / aggregates over a by clause agree for atoms (4.0)
 first max select count 1b by x1 from ([]1 2 3;3 3 3)
+/&lt; 3
 / lj needs a keyed table on the right (4.0)
 t lj ([]c:`x`y;d:1 2)
+/&lt; — the right argument was not checked for a key (NUC, 4.0 2019.11.04)
 t lj ([c:`x`y]d:1 2)
 / update … by on a dictionary is an error, not ignored (4.1 2024.04.29)
 dd:`a`b!1 2
 update a by b from dd
+/&lt; — the by clause was ignored (NUC, 4.1 2024.04.29)
 / value inside exec reads globals, not the caller&#x27;s locals (4.1)
 a:0
-{a:1;exec value&quot;2*a&quot; from ([]``)}[]</pre></div></details></div>
+{a:1;exec value&quot;2*a&quot; from ([]``)}[]
+/&lt; 2
+/ the safe form: refer to the local directly, or pass it in; no string to evaluate
+{a:1;exec 2*a from ([]``)}[]</pre></div></details></div>
   </div>
 
   <div class="lab lab3" id="lab-c2">
     <div class="notes">
       <h3><span class="n">C2</span>Numbers, Bytes &amp; Guids</h3>
-      <div class="vtags"><span class="tag v41">4.1</span><span class="tag vX">KDB-X</span><span class="tag vNUC">NUC</span></div>
+      <div class="vtags"><span class="tag kM">Semantic change</span><span class="tag kC">New capability</span><span class="tag v41">4.1</span><span class="tag vX">KDB-X</span><span class="tag vNUC">NUC</span></div>
       <p>The theme is <b>null, not garbage</b>. A float-to-int conversion out of range, including <code>3i div 0i</code>, now gives <code>0Ni</code> on every platform (ARM used to give <code>0i</code>); a string-to-time cast that overflows gives null instead of a wrapped value; short parsing no longer clamps to <code>0Wh</code>.</p>
       <p>Bytes became first-class text: <code>vs</code> and <code>sv</code> take byte vectors, <code>ss</code> searches them, and <code>.Q.atob</code> decodes base64. Guids gained an order, so <code>min</code>, <code>max</code> and <code>asc</code> work, with <code>0Ng</code> smallest.</p>
       <p class="notice">Two long-standing wrong answers were fixed too: <code>x*/y</code> on bytes or shorts (wrong since 3.3) and the seed of <code>&amp;/</code> on a sorted list (ignored since 3.1). If a result moves in the KDB-X column here, it was wrong before.</p>
     </div>
-    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Before · KX release notes</b><span>documented, not run</span></div><pre><span class="pc">/ What each line did before the change, per the release notes.</span>
+    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Previous behaviour · documented</b><span>not run</span></div><pre><span class="pc">/ What each line did before the change, per the release notes.</span>
 <span class="pq">q)3i div 0i</span>
 <span class="dl">— 0i on ARM, 0Ni elsewhere (NUC, KDB-X 2026.10.15)</span>
 <span class="pq">q)&quot;U&quot;$&quot;71582789:00&quot;</span>
@@ -914,7 +1006,7 @@ a:0
 <span class="pq">q)max 0Ng,g</span>
 <span class="dl">— not supported before KDB-X 2026.10.15</span>
 <span class="pq">q)type -16!til 3</span>
-<span class="dl">-6h</span></pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ C2 · numbers, casts, bytes and guids (4.x · KDB-X)</span>
+<span class="dl">-6h</span></pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64 · lab ea26c39f</span></div><pre><span class="pc">/ C2 · numbers, casts, bytes and guids (4.x · KDB-X)</span>
 <span class="pc">/ out of range or divide by zero gives null on every platform (KDB-X 2026.10.15)</span>
 <span class="pq">q)3i div 0i</span>
 <span class="dl">0Ni</span>
@@ -947,26 +1039,39 @@ a:0
 <span class="pc">/ the reference count is a long (KDB-X 2026.10.02)</span>
 <span class="pq">q)type -16!til 3</span>
 <span class="dl">-7h</span></pre></div></div><details class="labsrc"><summary>Show labs/c2-numbers-guids.q</summary><div class="code"><pre>/ C2 · numbers, casts, bytes and guids (4.x · KDB-X)
+/&lt;&lt; What each line did before the change, per the release notes.
 / out of range or divide by zero gives null on every platform (KDB-X 2026.10.15)
 3i div 0i
+/&lt; — 0i on ARM, 0Ni elsewhere (NUC, KDB-X 2026.10.15)
 / overflowing string-to-time casts give null (2026.10.23, also 4.1)
 &quot;U&quot;$&quot;71582789:00&quot;
+/&lt; — a wrapped value, not null (KDB-X 2026.10.23)
 &quot;N&quot;$&quot;106751D23:47:16.9&quot;
+/&lt; — a wrapped value, not null (4.1 2026.10.23)
 / short parsing no longer clamps (4.1 2021)
 &quot;H&quot;$&quot;99999&quot;
+/&lt; 0Wh
 / the seed of a sorted scan is honoured, and */ on bytes is right (2026.05.01)
 0&amp;/`s#1 2 3
+/&lt; — the seed 0 was ignored for a sorted list (wrong since 3.1; fixed 2026.05.01)
 0x01*/0x01020304
+/&lt; — a wrong result (wrong since 3.3; fixed 2026.05.01)
 / bytes: vs, sv and ss
 0x0203 sv 0x0203 vs &quot;x&quot;$til 6
+/&lt; — new: vs and sv on byte vectors (4.1 2021.09.03)
 0x01020304 ss 0x0203
+/&lt; — new: ss on bytes (KDB-X 2026.04.01)
 10h$.Q.atob &quot;aGVsbG8=&quot;
+/&lt; — new: .Q.atob (4.1 2025.11.25)
 / guids can be ordered (KDB-X 2026.10.15)
 g:3?0Ng
 (min g)~first asc g
+/&lt; — not supported: min, max, &amp; and | on guids arrived in KDB-X 2026.10.15
 max 0Ng,g
+/&lt; — not supported before KDB-X 2026.10.15
 / the reference count is a long (KDB-X 2026.10.02)
-type -16!til 3</pre></div></details></div>
+type -16!til 3
+/&lt; -6h</pre></div></details></div>
   </div>
 </section>
 
@@ -1003,19 +1108,21 @@ type -16!til 3</pre></div></details></div>
     <figcaption><b>Where a name is looked up.</b> A function reads its globals from the namespace it was defined in, so <code>.foo.f</code> returns 3 even when the root has its own <code>mult</code>. A name that namespace lacks is not looked for in the root: on KDB-X, lab D1 shows <code>.foo.g[]</code> failing with <code class="errtag">'rootOnly</code>. Inside a module, bare names are the module's, with one exception the KDB-X docs spell out: in qSQL, a function name is looked up in the caller's namespace, so the module writes <code>.z.m.f</code>.</figcaption>
   </figure>
 
+  <p><span class="mnote"><b>Definition site, call site.</b> Three namespaces are in play: the one a function was <i>defined</i> in, the one it is <i>called</i> from, and the one a name <i>lives</i> in. Unqualified globals follow the first. Calling <code>.foo.f</code> from the root does not make it read the root's <code>mult</code>, and a name <code>.foo</code> lacks is not looked for elsewhere.</span>The rule in one line: a function reads its unqualified globals from the namespace it was defined in. The lab tests it four ways.</p>
+
   <div class="lab lab3" id="lab-d1">
     <div class="notes">
       <h3><span class="n">D1</span>Namespaces</h3>
-      <div class="vtags"><span class="tag v41">4.x</span><span class="tag vX">KDB-X</span></div>
+      <div class="vtags"><span class="tag kC">New capability</span><span class="tag vX">KDB-X</span></div>
       <p>Four questions, each one line. Is a global bound when the function is defined? (<code>.foo.f 1</code>.) Is a name the namespace lacks found in the root? (<code>.foo.g[]</code>, defined under <code>\d .foo</code>, against <code>.foo.h[]</code>, defined from the root.) Can <code>\d</code> go two levels deep? Can a namespace be deleted?</p>
       <p class="notice"><i>Q for Mortals</i> says <code>\d</code> can only go one level down from the root. On KDB-X 5.0 2026.10.23 it goes two: <code>\d .a.b</code> works and <code>\d</code> reports <code>`.a.b</code>. No release note mentions the change.</p>
       <p class="notice"><code>q.foo)k:{…}</code> defines a function in <code>.foo</code> without leaving the root, the safest way to write one: no <code>\d</code> to forget to undo.</p>
       <div class="verdict" id="verdict-fallback"><b>The root-fallback question, answered for KDB-X.</b> It is often said that KDB-X stopped finding root names from inside a namespace. On KDB-X there is no fallback: <code>.foo.g</code>, defined under <code>\d .foo</code>, signals <code class="errtag">'rootOnly</code>, while <code>.foo.h</code>, the same body defined from the root, returns <code>42</code>. The name was bound to the namespace the function was written in, and <code>.foo</code> has no <code>rootOnly</code>. Whether that is <i>new</i> is a separate question: no release note lists a change to name lookup, and the behaviour is exactly the definition-time binding <i>Q for Mortals</i> describes for kdb+. The claim most likely confuses this rule with the qSQL rule inside modules. It could not be run on kdb+ 4.x here; one run with a 4.x licence settles it.</div>
     </div>
-    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Before · KX release notes</b><span>documented, not run</span></div><pre><span class="pc">/ No release note changes how a global name is looked up, so there is no</span>
+    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Previous behaviour · documented</b><span>not run</span></div><pre><span class="pc">/ No release note changes how a global name is looked up, so there is no</span>
 <span class="pc">/ documented &quot;before&quot; for the first eight lines. The one new feature:</span>
 <span class="pq">q)delete foo from `</span>
-— new: a top-level namespace can be deleted (KDB-X 2026.10.15)</pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ D1 · where a global name is looked up</span>
+— new: a top-level namespace can be deleted (KDB-X 2026.10.15)</pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64 · lab 86107de9</span></div><pre><span class="pc">/ D1 · where a global name is looked up</span>
 <span class="pq">q)mult:4</span>
 <span class="pq">q)\d .foo</span>
 <span class="pq">q)mult:3</span>
@@ -1053,6 +1160,8 @@ type -16!til 3</pre></div></details></div>
 `
 <span class="pq">q)`foo in key `</span>
 0b</pre></div></div><details class="labsrc"><summary>Show labs/d1-namespaces.q</summary><div class="code"><pre>/ D1 · where a global name is looked up
+/&lt;&lt; No release note changes how a global name is looked up, so there is no
+/&lt;&lt; documented &quot;before&quot; for the first eight lines. The one new feature:
 mult:4
 \d .foo
 mult:3
@@ -1081,40 +1190,54 @@ key `.a
 \d .
 / a whole namespace can be deleted (KDB-X 2026.10.15)
 delete foo from `
+/&lt; — new: a top-level namespace can be deleted (KDB-X 2026.10.15)
 `foo in key `</pre></div></details></div>
   </div>
 
   <div class="lab lab3" id="lab-e1">
     <div class="notes">
       <h3><span class="n">E1</span>Loading &amp; One-shot IPC</h3>
-      <div class="vtags"><span class="tag v40">4.0</span><span class="tag v41">4.1</span><span class="tag vX">KDB-X</span><span class="tag vNUC">NUC</span></div>
+      <div class="vtags"><span class="tag kC">New capability</span><span class="tag v40">4.0</span><span class="tag v41">4.1</span><span class="tag vX">KDB-X</span><span class="tag vNUC">NUC</span></div>
       <p><code>\l .:inner.q</code> loads <code>inner.q</code> from the folder of the file doing the loading, not from the working directory, so a library can load its own parts wherever it is installed (KDB-X 2026.04.01). Its partner, <code>.Q.rp`:.:path</code>, resolves such a path to a file handle.</p>
-      <p>Since 4.0, a one-shot query can carry a timeout, <code>`::[("host:port";ms);query]</code>, so a probe of a dead process fails in half a second instead of hanging.</p>
+      <p>Since 4.0, a one-shot query can carry a timeout, <code>`::[("host:port";ms);query]</code>. The lab shows the two ways a probe fails. The first port has no listener, so the query fails at once: that is a refused connection, not a timeout. The second port is this process itself, listening but busy asking, so the connection is accepted and nothing answers; after 500 ms the query gives up. That second case, a process that is up but stuck, is what the timeout is for.</p>
     </div>
-    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Before · KX release notes</b><span>documented, not run</span></div><pre><span class="pc">/ What each line did before the change, per the release notes.</span>
+    <div class="cmds"><div class="outs"><div class="out v4"><div class="vh"><b>Previous behaviour · documented</b><span>not run</span></div><pre><span class="pc">/ What each line did before the change, per the release notes.</span>
 <span class="pq">q)\l labs/inc/outer.q</span>
 — new: \l .:path is relative to the loading file (KDB-X 2026.04.01)
-<span class="pq">q)`::[(&quot;:localhost:5999&quot;;500);&quot;1+1&quot;]</span>
+<span class="pq">q)\p 0</span>
 — new: a one-shot query with a timeout (4.0 2020.03.09)
 <span class="pq">q)type .z.H</span>
-— new: .z.H (4.0 2020.06.01); a sorted list since 4.1 2024.07.08</pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ E1 · loading relative to a file (KDB-X) and one-shot queries with a timeout (4.0)</span>
+— new: .z.H (4.0 2020.06.01); a sorted list since 4.1 2024.07.08</pre></div><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64 · lab eba4e405</span></div><pre><span class="pc">/ E1 · loading relative to a file (KDB-X) and one-shot queries with a timeout (4.0)</span>
 <span class="pc">/ labs/inc/outer.q loads inner.q from its own folder with \l .:inner.q</span>
 <span class="pq">q)\l labs/inc/outer.q</span>
 <span class="pq">q)outerSaw</span>
 &quot;inner.q, found next to outer.q&quot;
-<span class="pc">/ a one-shot query with a 500 ms timeout, to a port nobody listens on</span>
+<span class="pc">/ a one-shot query with a 500 ms timeout: first to a port nobody listens on</span>
 <span class="pq">q)`::[(&quot;:localhost:5999&quot;;500);&quot;1+1&quot;]</span>
 <span class="er">&#x27;hop. OS reports: Connection refused</span>
+<span class="pc">/ then to a port that accepts the connection but never answers (this process, busy asking)</span>
+<span class="pq">q)\p 5998</span>
+<span class="pq">q)`::[(&quot;:localhost:5998&quot;;500);&quot;1+1&quot;]</span>
+2
+<span class="pq">q)\p 0</span>
 <span class="pc">/ handles are now a sorted list (4.1 2024.07.08)</span>
 <span class="pq">q)type .z.H</span>
 6h</pre></div></div><details class="labsrc"><summary>Show labs/e1-loading-ipc.q</summary><div class="code"><pre>/ E1 · loading relative to a file (KDB-X) and one-shot queries with a timeout (4.0)
+/&lt;&lt; What each line did before the change, per the release notes.
 / labs/inc/outer.q loads inner.q from its own folder with \l .:inner.q
 \l labs/inc/outer.q
+/&lt; — new: \l .:path is relative to the loading file (KDB-X 2026.04.01)
 outerSaw
-/ a one-shot query with a 500 ms timeout, to a port nobody listens on
+/ a one-shot query with a 500 ms timeout: first to a port nobody listens on
 `::[(&quot;:localhost:5999&quot;;500);&quot;1+1&quot;]
+/ then to a port that accepts the connection but never answers (this process, busy asking)
+\p 5998
+`::[(&quot;:localhost:5998&quot;;500);&quot;1+1&quot;]
+\p 0
+/&lt; — new: a one-shot query with a timeout (4.0 2020.03.09)
 / handles are now a sorted list (4.1 2024.07.08)
-type .z.H</pre></div></details></div>
+type .z.H
+/&lt; — new: .z.H (4.0 2020.06.01); a sorted list since 4.1 2024.07.08</pre></div></details></div>
   </div>
 </section>
 
@@ -1126,14 +1249,14 @@ type .z.H</pre></div></details></div>
 
   <figure id="fig-module">
     <div class="fig">
-<svg viewBox="0 0 980 310" role="img" aria-label="Anatomy of a module. On the left, the search order for use of tick.cfg in each search-path directory: tick/cfg.k, cfg.q, cfg.k_, cfg.q_, a platform shared library, then tick/cfg/init.k, init.q and so on; the first match wins. In the middle, this repository's mod directory holds tick/cfg/init.q, tick/check/init.q and tick/pubsub/init.q, each with a test folder. On the right, init.q defines private functions and an export dictionary; use returns the export, and the caller names it cfg and calls cfg.load.">
+<svg viewBox="0 0 980 330" role="img" aria-label="Anatomy of a module. On the left, the search order for use of tick.cfg in each search-path directory: tick/cfg.k, cfg.q, cfg.k_, cfg.q_, a platform shared library, then tick/cfg/init.k, init.q and so on; the first match wins. In the middle, this repository's mod directory holds tick/cfg/init.q, tick/check/init.q and tick/pubsub/init.q, each with a test folder. On the right, init.q defines private functions and an export dictionary; use returns the export, and the caller names it cfg and calls cfg.load.">
   <defs><marker id="ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--s1)"/></marker></defs>
   <text x="30" y="26" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--muted)" letter-spacing=".06em">1 · WHERE use LOOKS</text>
   <rect x="30" y="38" width="250" height="250" rx="6" fill="var(--code-bg)" stroke="var(--line)"/>
   <g font-family="JetBrains Mono,monospace" font-size="11" fill="var(--fg)">
     <text x="44" y="60" fill="var(--muted)">for each dir in QPATH, .Q.m.SP</text>
     <text x="44" y="82">dir/tick/cfg.k</text><text x="44" y="100">dir/tick/cfg.q</text><text x="44" y="118">dir/tick/cfg.k_</text><text x="44" y="136">dir/tick/cfg.q_</text><text x="44" y="154">dir/tick/cfg.$PLATFORM.so</text>
-    <text x="44" y="178" fill="var(--s1)">dir/tick/cfg/init.k</text><text x="44" y="196" fill="var(--s1)" font-weight="600">dir/tick/cfg/init.q  ←</text><text x="44" y="214">dir/tick/cfg/init.k_ …</text>
+    <text x="44" y="178" fill="var(--s1)">dir/tick/cfg/init.k</text><text x="44" y="196" fill="var(--s1)" font-weight="600">dir/tick/cfg/init.q  ←</text><text x="44" y="214">dir/tick/cfg/init.k_ …</text>
     <text x="44" y="246" fill="var(--muted)">first match wins; each dir is</text><text x="44" y="262" fill="var(--muted)">searched fully before the next</text>
   </g>
   <text x="330" y="26" font-family="JetBrains Mono,monospace" font-size="10.5" fill="var(--muted)" letter-spacing=".06em">2 · THIS REPOSITORY</text>
@@ -1149,7 +1272,7 @@ type .z.H</pre></div></details></div>
   <rect x="630" y="38" width="320" height="140" rx="6" fill="var(--s1-bg)" stroke="var(--s1)"/>
   <g font-family="JetBrains Mono,monospace" font-size="11.5" fill="var(--fg)">
     <text x="644" y="60" fill="var(--muted)">/ tick/cfg/init.q, private namespace</text>
-    <text x="644" y="82">cast:{…}  env:{…}  cli:{…}</text>
+    <text x="644" y="82">cast:{…}  env:{…}  cli:{…}</text>
     <text x="644" y="104">.z.m.load:{[spec:isSpec]…}</text>
     <text x="644" y="122" fill="var(--muted)">/ load is reserved: defined via .z.m</text>
     <text x="644" y="150" fill="var(--s1)" font-weight="500">export:([.z.m.load;cast;env;cli])</text>
@@ -1160,9 +1283,11 @@ type .z.H</pre></div></details></div>
     <text x="644" y="244">q)cfg:use`tick.cfg</text>
     <text x="644" y="266">q)([port]):cfg.load ([port:5010])</text>
   </g>
+  <text x="630" y="308" font-family="Schibsted Grotesk,sans-serif" font-size="11" fill="var(--muted)">4 · loaded once: a second <tspan font-family="JetBrains Mono,monospace">use</tspan> returns the cached export;</text>
+  <text x="630" y="324" font-family="Schibsted Grotesk,sans-serif" font-size="11" fill="var(--muted)"><tspan font-family="JetBrains Mono,monospace">.Q.m.reuse</tspan> reloads after an edit</text>
 </svg>
     </div>
-    <figcaption><b>Anatomy of a module.</b> <code>use`tick.cfg</code> walks the search path and takes the first match; this repository's modules are directories with an <code>init.q</code>, found because <code>run-labs.sh</code> puts <code>mod/</code> on <code>QPATH</code>. Inside, everything is private until it appears in <code>export</code>, which is usually a dictionary literal. The caller chooses the name.</figcaption>
+    <figcaption><b>Anatomy of a module.</b> <code>use`tick.cfg</code> walks the search path and takes the first match; this repository's modules are directories with an <code>init.q</code>, found because <code>run-labs.sh</code> puts <code>mod/</code> on <code>QPATH</code>. Inside, everything is private until it appears in <code>export</code>, which is usually a dictionary literal. The caller chooses the name. A module runs once per process: later <code>use</code> calls get the same export without running <code>init.q</code> again.</figcaption>
   </figure>
 
   <p class="lead">The three modules here are built for the tickerplant, which is why they share the prefix <code>tick.</code>. KX prefixes its modules <code>kx.</code> and Data Intellect's community modules use <code>di.</code>, so <code>tick.</code> cannot collide with either. Their layout follows Data Intellect's convention, code and tests in one directory per module, and their tests use KX's Unit Test module, <code>kx.test</code>.</p>
@@ -1170,12 +1295,12 @@ type .z.H</pre></div></details></div>
   <div class="lab" id="lab-m1">
     <div class="notes">
       <h3><span class="n">M1</span>Using Modules</h3>
-      <div class="vtags"><span class="tag vX">KDB-X</span></div>
+      <div class="vtags"><span class="tag kC">New capability</span><span class="tag vX">KDB-X</span></div>
       <p><code>kx.os</code> is the plainest example of what a module is for: environment variables, sleeping and subprocesses, behind four names, with nothing added to the root.</p>
       <p>Datagen's own documentation opens with two lines of 4.1 grammar: a dictionary pattern takes one function out of the module's export, and a list pattern takes its result apart into five tables. Those are the tables the tickerplant in M4 streams.</p>
       <p class="notice">A module is loaded once. <code>(use`kx.os)~os</code> is <code>1b</code>: the second <code>use</code> returns the cached export, and to reload after an edit you call <code>.Q.m.reuse</code>.</p>
     </div>
-    <div class="cmds"><div class="outs one"><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ M1 · using modules (KDB-X)</span>
+    <div class="cmds"><div class="outs one"><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64 · lab 86456d9b</span></div><pre><span class="pc">/ M1 · using modules (KDB-X)</span>
 <span class="pc">/ use returns the module&#x27;s export; you name it</span>
 <span class="pq">q)os:use`kx.os</span>
 <span class="pq">q)key os</span>
@@ -1229,36 +1354,40 @@ cols trade
   <div class="lab" id="lab-m2">
     <div class="notes">
       <h3><span class="n">M2</span>Writing One: tick.cfg</h3>
-      <div class="vtags"><span class="tag vX">KDB-X</span><span class="tag v41">4.1 grammar</span></div>
+      <div class="vtags"><span class="tag kC">New capability</span><span class="tag vX">KDB-X</span><span class="tag v41">4.1 grammar</span></div>
       <p>A spec is a dictionary literal of defaults, and the <b>type</b> of each default is the type the setting must have. <code>load</code> overlays the environment (<code>TICK_PORT</code>) and the command line (<code>-port</code>), parses each string to its default's type, and refuses by name anything that does not parse, so a process cannot start on port <code>0N</code>.</p>
       <p>Three module rules show up in 40 lines: <code>load</code> is a keyword, so it is defined as <code>.z.m.load</code>; its parameter is guarded by a filter, <code>{[spec:isSpec]…}</code>, defined in the same module; and the export is a dictionary literal.</p>
       <p class="notice">Prior art: jkane17's <code>clap</code> module parses command-line arguments the same way; KDB-X itself now reads <code>~/.kx/config</code> for q's own options. <code>tick.cfg</code> differs in letting the defaults' types do the validation.</p>
     </div>
-    <div class="cmds"><div class="outs one"><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ M2 · writing a module: tick.cfg (KDB-X)</span>
+    <div class="cmds"><div class="outs one"><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64 · lab 2d1e534b</span></div><pre><span class="pc">/ M2 · writing a module: tick.cfg (KDB-X)</span>
 <span class="pq">q)cfg:use`tick.cfg</span>
 <span class="pq">q)key cfg</span>
 `load`cast`env`cli
-<span class="pq">q)spec:([port:5010;logdir:`:./log;tables:`trade`quote;pubMs:100])</span>
-<span class="er">&#x27;assign</span>
+<span class="pq">q)spec:([port:5010;logdir:`:./log;tabs:`trade`quote;pubMs:100])</span>
 <span class="pq">q)cfg.load spec</span>
-<span class="er">&#x27;spec</span>
+port  | 5010
+logdir| `:./log
+tabs  | `trade`quote
+pubMs | 100
 <span class="pc">/ the environment overrides a default, and is parsed to the default&#x27;s type</span>
 <span class="pq">q)setenv[`TICK_PORT;&quot;6010&quot;]</span>
 <span class="pq">q)cfg.load spec</span>
-<span class="er">&#x27;spec</span>
+port  | 6010
+logdir| `:./log
+tabs  | `trade`quote
+pubMs | 100
 <span class="pc">/ take only what you need with a dictionary pattern</span>
-<span class="pq">q)([port;tables]):cfg.load spec</span>
-<span class="er">&#x27;spec</span>
+<span class="pq">q)([port;tabs]):cfg.load spec</span>
 <span class="pq">q)port</span>
-<span class="er">&#x27;port</span>
+6010
 <span class="pc">/ a value that does not parse is refused by name</span>
 <span class="pq">q)setenv[`TICK_PORT;&quot;oops&quot;]</span>
 <span class="pq">q)cfg.load spec</span>
-<span class="er">&#x27;spec</span>
+<span class="er">&#x27;cfg: cannot parse port</span>
 <span class="pc">/ setenv with :: unsets (KDB-X 2026.10.15)</span>
 <span class="pq">q)setenv[`TICK_PORT;::]</span>
 <span class="pq">q)cfg.load[spec]`port</span>
-<span class="er">&#x27;spec</span>
+5010
 <span class="pc">/ load&#x27;s parameter filter refuses anything that is not a spec</span>
 <span class="pq">q)cfg.load 1 2 3</span>
 <span class="er">&#x27;cfg: a spec is a dictionary of defaults</span>
@@ -1267,13 +1396,13 @@ cols trade
 <span class="er">&#x27;assign</span></pre></div></div><details class="labsrc"><summary>Show labs/m2-cfg.q</summary><div class="code"><pre>/ M2 · writing a module: tick.cfg (KDB-X)
 cfg:use`tick.cfg
 key cfg
-spec:([port:5010;logdir:(`:./log);tables:`trade`quote;pubMs:100])
+spec:([port:5010;logdir:`:./log;tabs:`trade`quote;pubMs:100])
 cfg.load spec
 / the environment overrides a default, and is parsed to the default&#x27;s type
 setenv[`TICK_PORT;&quot;6010&quot;]
 cfg.load spec
 / take only what you need with a dictionary pattern
-([port;tables]):cfg.load spec
+([port;tabs]):cfg.load spec
 port
 / a value that does not parse is refused by name
 setenv[`TICK_PORT;&quot;oops&quot;]
@@ -1289,8 +1418,8 @@ load:{x}</pre></div></details></div>
   <details class="srcfile"><summary><span class="fn">mod/tick/cfg/init.q</span><span class="lc">40 lines</span></summary><div class="body"><div class="code"><pre>/ tick.cfg : typed configuration from defaults, the environment and the command line
 
 /   cfg:use`tick.cfg
-/   c:cfg.load ([port:5010;logdir:(`:./log);tables:`trade`quote])
-/   ([port;tables]):cfg.load spec                / take just what you need
+/   c:cfg.load ([port:5010;logdir:`:./log;tabs:`trade`quote])
+/   ([port;tabs]):cfg.load spec                  / take just what you need
 
 / A spec is a dictionary literal of defaults. The TYPE of each default is the type
 / the setting must have: strings from the environment or the command line are
@@ -1330,11 +1459,11 @@ export:([.z.m.load;cast;env;cli])</pre></div></div></details>
   <div class="lab" id="lab-m3">
     <div class="notes">
       <h3><span class="n">M3</span>Filters as a Library: tick.check</h3>
-      <div class="vtags"><span class="tag vX">KDB-X</span><span class="tag v41">4.1 grammar</span></div>
+      <div class="vtags"><span class="tag kC">New capability</span><span class="tag vX">KDB-X</span><span class="tag v41">4.1 grammar</span></div>
       <p>Every function in <code>tick.check</code> takes a value and returns it, possibly converted, or signals an error that names what failed. That is the contract a filter function needs, so each one drops into a pattern or a parameter list: <code>upd:{[t:chk.table;x] (x:chk.schema t):x; t insert x}</code> refuses an unknown table in its parameter list and a mistyped row on its first line, and nothing is inserted unless both pass.</p>
       <p><code>schema</code> takes two arguments; projected, <code>chk.schema`trade</code> is a one-argument filter. The parameter is called <code>tn</code>, because inside <code>exec t from meta tn</code> a column named <code>t</code> would shadow a parameter called <code>t</code>.</p>
     </div>
-    <div class="cmds"><div class="outs one"><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ M3 · filters as a library: tick.check (KDB-X)</span>
+    <div class="cmds"><div class="outs one"><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64 · lab c6fb6a80</span></div><pre><span class="pc">/ M3 · filters as a library: tick.check (KDB-X)</span>
 <span class="pq">q)chk:use`tick.check</span>
 <span class="pq">q)trade:([]time:`timespan$();sym:`symbol$();px:`float$();size:`long$())</span>
 <span class="pq">q)chk.table`trade</span>
@@ -1451,106 +1580,171 @@ t.assertType[{chk.ts 2026.11.21D10:00:00};&quot;n&quot;;([name:&quot;a timestamp
 t.assertError[{chk.nonull 1 0N 3};&quot;null&quot;;([name:&quot;a null is refused&quot;])]
 t.assertMatch[{chk.between[0;10] 3 7};3 7;([name:&quot;inside the range passes&quot;])]
 t.assertError[{chk.between[0;10] 3 11};&quot;range&quot;;([name:&quot;outside the range is refused&quot;])]</pre></div></div></details></div>
-    <div class="col"><div class="out vx"><div class="vh"><b>KDB-X · kx.test</b><span>mod/tick/check/test</span></div><pre>filename                     feature name                   status executionT..
------------------------------------------------------------------------------..
-:mod/tick/check/test/check.q table   &quot;a known table passes&quot; error  0         ..
+    <div class="col"><div class="out vx"><div class="vh"><b>KDB-X · kx.test</b><span>mod/tick/check/test</span></div><pre>filename                     feature name                   status executionTime memory description details                                                                                                                                                       
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/check/test/check.q table   &quot;a known table passes&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.table`trade};`trade;`trade;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
 
-filename                     feature name                        status execu..
------------------------------------------------------------------------------..
-:mod/tick/check/test/check.q table   &quot;an unknown table is named&quot; fail   0    ..
+filename                     feature name                        status executionTime memory description details                                                                                                                                                                                    
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/check/test/check.q table   &quot;an unknown table is named&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.table`nope};&quot;unknown table: nope&quot;;&quot;unknown table: nope&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
 
-filename                     feature name                           status ex..
------------------------------------------------------------------------------..
-:mod/tick/check/test/check.q table   &quot;a string is not a table name&quot; fail   0 ..
+filename                     feature name                           status executionTime memory description details                                                                                                                                                        
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/check/test/check.q table   &quot;a string is not a table name&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.table&quot;trade&quot;};&quot;type&quot;;&quot;type&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
 
-filename                     feature name                  status executionTi..
------------------------------------------------------------------------------..
-:mod/tick/check/test/check.q schema  &quot;one good row passes&quot; error  0          ..
+filename                     feature name                  status executionTime memory description details                                                                                                                                                                                                                                                    
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/check/test/check.q schema  &quot;one good row passes&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.schema[`trade;(0D10:00;`AAPL;182.4;100)]};(0D10:00:00.000000000;`AAPL;182.4;100);(0D10:00:00.000000000;`AAPL;182.4;100);+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
 
-filename                     feature name                  status executionTi..
------------------------------------------------------------------------------..
-:mod/tick/check/test/check.q schema  &quot;a good batch passes&quot; error  0          ..
+filename                     feature name                  status executionTime memory description details                                                                                                                                                                                                                                                                                                   ..
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------..
+:mod/tick/check/test/check.q schema  &quot;a good batch passes&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.schema[`trade;(2#0D10:00;`AAPL`MSFT;1 2f;3 4)]};(0D10:00:00.000000000 0D10:00:00.000000000;`AAPL`MSFT;1 2f;3 4);(0D10:00:00.000000000 0D10:00:00.000000000;`AAPL`MSFT;1 2f;3 4);+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;..
 
-filename                     feature name                    status execution..
------------------------------------------------------------------------------..
-:mod/tick/check/test/check.q schema  &quot;a float size is named&quot; fail   0        ..
+filename                     feature name                    status executionTime memory description details                                                                                                                                                                                                             
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/check/test/check.q schema  &quot;a float size is named&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.schema[`trade;(0D10:00;`AAPL;182.4;100f)]};&quot;type: trade size&quot;;&quot;type: trade size&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
 
-filename                     feature name                     status executio..
------------------------------------------------------------------------------..
-:mod/tick/check/test/check.q schema  &quot;a short row is refused&quot; fail   0       ..
+filename                     feature name                     status executionTime memory description details                                                                                                                                                                                                  
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/check/test/check.q schema  &quot;a short row is refused&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.schema[`trade;(0D10:00;`AAPL;182.4)]};&quot;length: trade&quot;;&quot;length: trade&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
 
-filename                     feature name                              status..
------------------------------------------------------------------------------..
-:mod/tick/check/test/check.q pattern &quot;a filter converts on assignment&quot; error ..
+filename                     feature name                              status executionTime memory description details                                                                                                                                                          
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/check/test/check.q pattern &quot;a filter converts on assignment&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({(x:chk.sym):&quot;AAPL&quot;;x};`AAPL;`AAPL;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
 
-filename                     feature name                              status..
------------------------------------------------------------------------------..
-:mod/tick/check/test/check.q pattern &quot;a projected filter in a pattern&quot; error ..
+filename                     feature name                              status executionTime memory description details                                                                                                                                                                                   
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/check/test/check.q pattern &quot;a projected filter in a pattern&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({(x:chk.schema`trade):(0D10:00;`AAPL;1f;1);x 1};`AAPL;`AAPL;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
 
-filename                     feature name                              status..
------------------------------------------------------------------------------..
-:mod/tick/check/test/check.q pattern &quot;a failed filter assigns nothing&quot; fail  ..
+filename                     feature name                              status executionTime memory description details                                                                                                                                                                        
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/check/test/check.q pattern &quot;a failed filter assigns nothing&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({(x:chk.positive):1 0 2;x};&quot;positive&quot;;&quot;positive&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
 
-filename                     feature name                     status executio..
------------------------------------------------------------------------------..
-:mod/tick/check/test/check.q filters &quot;strings become symbols&quot; error  0       ..
+filename                     feature name                     status executionTime memory description details                                                                                                                                                                      
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/check/test/check.q filters &quot;strings become symbols&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.sym(&quot;AAPL&quot;;&quot;MSFT&quot;)};`AAPL`MSFT;`AAPL`MSFT;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
 
-filename                     feature name                             status ..
------------------------------------------------------------------------------..
-:mod/tick/check/test/check.q filters &quot;a timestamp becomes a timespan&quot; error  ..
+filename                     feature name                             status executionTime memory description details                                                                                                                                                                             
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/check/test/check.q filters &quot;a timestamp becomes a timespan&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.ts 2026.11.21D10:00:00};0D10:00:00.000000000;&quot;n&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
 
-filename                     feature name                status executionTime..
------------------------------------------------------------------------------..
-:mod/tick/check/test/check.q filters &quot;a null is refused&quot; fail   0            ..
+filename                     feature name                status executionTime memory description details                                                                                                                                                         
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/check/test/check.q filters &quot;a null is refused&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.nonull 1 0N 3};&quot;null&quot;;&quot;null&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
 
-filename                     feature name                      status executi..
------------------------------------------------------------------------------..
-:mod/tick/check/test/check.q filters &quot;inside the range passes&quot; error  0      ..
+filename                     feature name                      status executionTime memory description details                                                                                                                                                       
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/check/test/check.q filters &quot;inside the range passes&quot; pass   0             3760   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.between[0;10] 3 7};3 7;3 7;+`executionTime`memory!(,0;,3760);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
 
-filename                     feature name                           status ex..
------------------------------------------------------------------------------..
-:mod/tick/check/test/check.q filters &quot;outside the range is refused&quot; fail   0 ..
+filename                     feature name                           status executionTime memory description details                                                                                                                                                                
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/check/test/check.q filters &quot;outside the range is refused&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.between[0;10] 3 11};&quot;range&quot;;&quot;range&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
 
-filename                     feature name                              status..
------------------------------------------------------------------------------..
-:mod/tick/check/test/check.q table   &quot;a known table passes&quot;            error ..
-:mod/tick/check/test/check.q table   &quot;an unknown table is named&quot;       fail  ..
-:mod/tick/check/test/check.q table   &quot;a string is not a table name&quot;    fail  ..
-:mod/tick/check/test/check.q schema  &quot;one good row passes&quot;             error ..
-:mod/tick/check/test/check.q schema  &quot;a good batch passes&quot;             error ..
-:mod/tick/check/test/check.q schema  &quot;a float size is named&quot;           fail  ..
-:mod/tick/check/test/check.q schema  &quot;a short row is refused&quot;          fail  ..
-:mod/tick/check/test/check.q pattern &quot;a filter converts on assignment&quot; error ..
-:mod/tick/check/test/check.q pattern &quot;a projected filter in a pattern&quot; error ..
-:mod/tick/check/test/check.q pattern &quot;a failed filter assigns nothing&quot; fail  ..
-:mod/tick/check/test/check.q filters &quot;strings become symbols&quot;          error ..
-:mod/tick/check/test/check.q filters &quot;a timestamp becomes a timespan&quot;  error ..
-:mod/tick/check/test/check.q filters &quot;a null is refused&quot;               fail  ..
-:mod/tick/check/test/check.q filters &quot;inside the range passes&quot;         error ..
-:mod/tick/check/test/check.q filters &quot;outside the range is refused&quot;    fail  ..
-&#x27;2026.11.21T06:08:38.355 check.xml
-  [2]  /Users/rohanshilohshah/Code/beyond-kdb3/mod/tick/check/test/run.q:7: `:out/junit-check.xml 0: t.junitReport r;
-                                                                                        ^</pre></div><div class="out vx"><div class="vh"><b>KDB-X · kx.test</b><span>mod/tick/cfg/test</span></div><pre>&#x27;2026.11.21T06:08:28.295 assign
-  [7]  :mod/tick/cfg/test/cfg.q:4: spec:([port:5010;logdir:`:./log;tables:`trade`quote;name:&quot;tp&quot;]);
-                                                                         ^
-  [4]  /Users/rohanshilohshah/Code/beyond-kdb3/mod/tick/cfg/test/run.q:3: \l :mod/tick/cfg/test/cfg.q
-                                                                          ^
-  [3]  /Users/rohanshilohshah/.kx/mod/kx/test.q:417: .m.kx.0test.runFile:{[file:`s] setFileName[file]; system &quot;l &quot;,string[file]; setFileName[.z.f]}
-                                                                                                       ^
-  [2]  /Users/rohanshilohshah/Code/beyond-kdb3/mod/tick/cfg/test/run.q:3: t.runFile`:mod/tick/cfg/test/cfg.q;
-                                                                          ^</pre></div></div>
+filename                     feature name                              status executionTime memory description details                                                                                                                                                                                                                                                                                       ..
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------..
+:mod/tick/check/test/check.q table   &quot;a known table passes&quot;            pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.table`trade};`trade;`trade;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                                                                                                                                ..
+:mod/tick/check/test/check.q table   &quot;an unknown table is named&quot;       pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.table`nope};&quot;unknown table: nope&quot;;&quot;unknown table: nope&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                                                                                                   ..
+:mod/tick/check/test/check.q table   &quot;a string is not a table name&quot;    pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.table&quot;trade&quot;};&quot;type&quot;;&quot;type&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                                                                                                                               ..
+:mod/tick/check/test/check.q schema  &quot;one good row passes&quot;             pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.schema[`trade;(0D10:00;`AAPL;182.4;100)]};(0D10:00:00.000000000;`AAPL;182.4;100);(0D10:00:00.000000000;`AAPL;182.4;100);+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                                   ..
+:mod/tick/check/test/check.q schema  &quot;a good batch passes&quot;             pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.schema[`trade;(2#0D10:00;`AAPL`MSFT;1 2f;3 4)]};(0D10:00:00.000000000 0D10:00:00.000000000;`AAPL`MSFT;1 2f;3 4);(0D10:00:00.000000000 0D10:00:00.000000000;`AAPL`MSFT;1 2f;3 4);+`executionTime`memory!(,0;,2672);-314159i;`r..
+:mod/tick/check/test/check.q schema  &quot;a float size is named&quot;           pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.schema[`trade;(0D10:00;`AAPL;182.4;100f)]};&quot;type: trade size&quot;;&quot;type: trade size&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                                                                          ..
+:mod/tick/check/test/check.q schema  &quot;a short row is refused&quot;          pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.schema[`trade;(0D10:00;`AAPL;182.4)]};&quot;length: trade&quot;;&quot;length: trade&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                                                                                     ..
+:mod/tick/check/test/check.q pattern &quot;a filter converts on assignment&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({(x:chk.sym):&quot;AAPL&quot;;x};`AAPL;`AAPL;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                                                                                                                             ..
+:mod/tick/check/test/check.q pattern &quot;a projected filter in a pattern&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({(x:chk.schema`trade):(0D10:00;`AAPL;1f;1);x 1};`AAPL;`AAPL;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                                                                                                    ..
+:mod/tick/check/test/check.q pattern &quot;a failed filter assigns nothing&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({(x:chk.positive):1 0 2;x};&quot;positive&quot;;&quot;positive&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                                                                                                               ..
+:mod/tick/check/test/check.q filters &quot;strings become symbols&quot;          pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.sym(&quot;AAPL&quot;;&quot;MSFT&quot;)};`AAPL`MSFT;`AAPL`MSFT;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                                                                                                                 ..
+:mod/tick/check/test/check.q filters &quot;a timestamp becomes a timespan&quot;  pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.ts 2026.11.21D10:00:00};0D10:00:00.000000000;&quot;n&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                                                                                                          ..
+:mod/tick/check/test/check.q filters &quot;a null is refused&quot;               pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.nonull 1 0N 3};&quot;null&quot;;&quot;null&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                                                                                                                              ..
+:mod/tick/check/test/check.q filters &quot;inside the range passes&quot;         pass   0             3760   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.between[0;10] 3 7};3 7;3 7;+`executionTime`memory!(,0;,3760);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                                                                                                                                ..
+:mod/tick/check/test/check.q filters &quot;outside the range is refused&quot;    pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({chk.between[0;10] 3 11};&quot;range&quot;;&quot;range&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                                                                                                                       ..
+status| n 
+------| --
+pass  | 15</pre></div><div class="out vx"><div class="vh"><b>KDB-X · kx.test</b><span>mod/tick/cfg/test</span></div><pre>filename                 feature name     status executionTime memory description details                                                                                                                                                         
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/cfg/test/cfg.q cast    &quot;a long&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({cfg.cast[5010;&quot;6010&quot;]};6010;6010;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
+
+filename                 feature name            status executionTime memory description details                                                                                                                                                                                                       
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/cfg/test/cfg.q cast    &quot;a symbol list&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({cfg.cast[`trade`quote;&quot;trade quote nbbo&quot;]};`trade`quote`nbbo;`trade`quote`nbbo;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
+
+filename                 feature name                      status executionTime memory description details                                                                                                                                                          
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/cfg/test/cfg.q cast    &quot;a string stays a string&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({cfg.cast[&quot;tp&quot;;&quot;tp2&quot;]};&quot;tp2&quot;;&quot;tp2&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
+
+filename                 feature name                 status executionTime memory description details                                                                                                                                                     
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/cfg/test/cfg.q cast    &quot;a bad long is null&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({cfg.cast[5010;&quot;oops&quot;]};0N;^:;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
+
+filename                 feature name                           status executionTime memory description details                                                                                                                                                                                                                                                       
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/cfg/test/cfg.q load    &quot;defaults when nothing is set&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({cfg.load spec};`port`logdir`tabs`name!(5010;`:./log;`trade`quote;&quot;tp&quot;);`port`logdir`tabs`name!(5010;`:./log;`trade`quote;&quot;tp&quot;);+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
+
+filename                 feature name                                  status executionTime memory description details                                                                                                                                                                                  
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/cfg/test/cfg.q load    &quot;the environment overrides a default&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({setenv[`TICK_PORT;&quot;6010&quot;]; cfg.load[spec]`port};6010;6010;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
+
+filename                 feature name                   status executionTime memory description details                                                                                                                                                                                                                    
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/cfg/test/cfg.q load    &quot;a bad value is named&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({setenv[`TICK_PORT;&quot;oops&quot;]; cfg.load spec};&quot;cfg: cannot parse port&quot;;&quot;cfg: cannot parse port&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
+
+filename                 feature name                                  status executionTime memory description details                                                                                                                                                                                                                            
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/cfg/test/cfg.q load    &quot;the parameter filter refuses a list&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({cfg.load 1 2 3};&quot;cfg: a spec is a dictionary of defaults&quot;;&quot;cfg: a spec is a dictionary of defaults&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
+
+filename                 feature name                                       status executionTime memory description details                                                                                                                                                                                                          
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/cfg/test/cfg.q load    &quot;a dictionary pattern takes what it needs&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({([port;tabs]):cfg.load spec; (port;tabs)};(5010;`trade`quote);(5010;`trade`quote);+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
+
+filename                 feature name                                       status executionTime memory description details                                                                                                                                                                                                                                                       
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+:mod/tick/cfg/test/cfg.q cast    &quot;a long&quot;                                   pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({cfg.cast[5010;&quot;6010&quot;]};6010;6010;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                                                                                              
+:mod/tick/cfg/test/cfg.q cast    &quot;a symbol list&quot;                            pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({cfg.cast[`trade`quote;&quot;trade quote nbbo&quot;]};`trade`quote`nbbo;`trade`quote`nbbo;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                                                
+:mod/tick/cfg/test/cfg.q cast    &quot;a string stays a string&quot;                  pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({cfg.cast[&quot;tp&quot;;&quot;tp2&quot;]};&quot;tp2&quot;;&quot;tp2&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                                                                                             
+:mod/tick/cfg/test/cfg.q cast    &quot;a bad long is null&quot;                       pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({cfg.cast[5010;&quot;oops&quot;]};0N;^:;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                                                                                                  
+:mod/tick/cfg/test/cfg.q load    &quot;defaults when nothing is set&quot;             pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({cfg.load spec};`port`logdir`tabs`name!(5010;`:./log;`trade`quote;&quot;tp&quot;);`port`logdir`tabs`name!(5010;`:./log;`trade`quote;&quot;tp&quot;);+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)
+:mod/tick/cfg/test/cfg.q load    &quot;the environment overrides a default&quot;      pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({setenv[`TICK_PORT;&quot;6010&quot;]; cfg.load[spec]`port};6010;6010;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                                                                     
+:mod/tick/cfg/test/cfg.q load    &quot;a bad value is named&quot;                     pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({setenv[`TICK_PORT;&quot;oops&quot;]; cfg.load spec};&quot;cfg: cannot parse port&quot;;&quot;cfg: cannot parse port&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                                   
+:mod/tick/cfg/test/cfg.q load    &quot;the parameter filter refuses a list&quot;      pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({cfg.load 1 2 3};&quot;cfg: a spec is a dictionary of defaults&quot;;&quot;cfg: a spec is a dictionary of defaults&quot;;+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                           
+:mod/tick/cfg/test/cfg.q load    &quot;a dictionary pattern takes what it needs&quot; pass   0             2672   &quot;&quot;          `input`actual`expected`reps`seed`configuration`skipMessage!({([port;tabs]):cfg.load spec; (port;tabs)};(5010;`trade`quote);(5010;`trade`quote);+`executionTime`memory!(,0;,2672);-314159i;`run`skip!(,&quot;&quot;;,&quot;&quot;);&quot;&quot;)                                             
+status| n
+------| -
+pass  | 9</pre></div></div>
   </div>
+
+  <p><span class="mnote mini"><b>How tickx.q is wired.</b>
+<svg viewBox="0 0 240 250" role="img" aria-label="The feed calls .u.upd, whose table parameter is checked by tick.check before anything is logged or published. The vanilla r.q calls .u.sub. Both .u names are bound from the root to functions exported by the tick.pubsub module, which keeps the subscriber state privately.">
+  <defs><marker id="wa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+  <g font-family="JetBrains Mono,monospace" font-size="9.6">
+    <rect x="0" y="0" width="100" height="26" rx="4" fill="var(--code-bg)" stroke="var(--line)"/><text x="50" y="17" text-anchor="middle" fill="var(--fg)">feedx.q</text>
+    <rect x="140" y="0" width="100" height="26" rx="4" fill="var(--code-bg)" stroke="var(--line)"/><text x="190" y="17" text-anchor="middle" fill="var(--fg)">r.q (vanilla)</text>
+    <rect x="0" y="56" width="240" height="78" rx="5" fill="var(--sheet)" stroke="var(--muted)"/>
+    <text x="8" y="72" fill="var(--muted)" font-family="Schibsted Grotesk,sans-serif" font-size="9.6" font-weight="600">tickx.q · the .u names</text>
+    <text x="8" y="92" fill="var(--fg)">.u.upd[t:chk.table;x]</text>
+    <text x="8" y="110" fill="var(--fg)">.u.sub:ps.sub   .u.pub:ps.pub</text>
+    <text x="8" y="126" fill="var(--muted)" font-family="Schibsted Grotesk,sans-serif" font-size="9">bound from the root, not under \d .u</text>
+    <rect x="0" y="166" width="110" height="46" rx="5" fill="var(--sig-bg, var(--code-bg))" stroke="var(--sig)"/>
+    <text x="55" y="184" text-anchor="middle" fill="var(--sig)" font-weight="600">tick.check</text><text x="55" y="200" text-anchor="middle" fill="var(--muted)" font-family="Schibsted Grotesk,sans-serif" font-size="9">refuses bad tables</text>
+    <rect x="130" y="166" width="110" height="46" rx="5" fill="var(--s1-bg)" stroke="var(--s1)"/>
+    <text x="185" y="184" text-anchor="middle" fill="var(--s1)" font-weight="600">tick.pubsub</text><text x="185" y="200" text-anchor="middle" fill="var(--muted)" font-family="Schibsted Grotesk,sans-serif" font-size="9">private w and t</text>
+  </g>
+  <g stroke="currentColor" stroke-opacity=".6" stroke-width="1.1" fill="none">
+    <path d="M50 26 V54" marker-end="url(#wa)"/><path d="M190 26 V54" marker-end="url(#wa)"/>
+    <path d="M55 134 V164" marker-end="url(#wa)"/><path d="M185 134 V164" marker-end="url(#wa)"/>
+  </g>
+  <text x="0" y="232" font-family="Schibsted Grotesk,sans-serif" font-size="9.6" fill="var(--muted)">The wire protocol is unchanged: r.q still</text>
+  <text x="0" y="245" font-family="Schibsted Grotesk,sans-serif" font-size="9.6" fill="var(--muted)">calls .u.sub and receives upd and .u.end.</text>
+</svg></span>The last lab puts the three modules to work in the oldest q architecture there is. KX's tickerplant keeps its protocol, so its subscribers do not change; only the inside does.</p>
 
   <div class="lab" id="lab-m4">
     <div class="notes">
       <h3><span class="n">M4</span>The Tickerplant on Modules</h3>
-      <div class="vtags"><span class="tag vX">KDB-X</span></div>
+      <div class="vtags"><span class="tag kC">New capability</span><span class="tag vX">KDB-X</span></div>
       <p>The vanilla <code>u.q</code> is twenty lines that run under <code>\d .u</code> and amend <code>`.u.w</code> by its absolute name. <code>tick.pubsub</code> is the same twenty lines as a module, changed in three places: no <code>\d</code>, <code>.z.M.w</code> instead of <code>`.u.w</code>, and two small functions to read the state that is now private.</p>
       <p><code>tickx.q</code> is the vanilla <code>tick.q</code> with five changes, each marked: it loads the module, binds its functions to the <code>.u</code> names subscribers call, keeps its own table list, guards <code>upd</code> with <code>[t:chk.table;x]</code>, and reads its schema from Datagen. The subscriber protocol does not change, so the <b>unmodified</b> <code>r.q</code> subscribes to it.</p>
       <p class="warn">The binding has to be done from the root: <code>.u.sub:ps.sub</code>. Written after <code>\d .u</code>, a bare <code>ps</code> would be read as <code>.u.ps</code>, which is the rule from <a href="#fig-names">§Names</a> biting in practice.</p>
       <p class="notice">Monitoring changes: <code>count each .u.w</code> becomes <code>count each .u.subs[]</code>. Run it with <code>labs/m4-pubsub.sh</code>, which starts the plant, the RDB and the feed, asks the questions on the right, and stops them.</p>
     </div>
-    <div class="cmds"><div class="outs one"><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64</span></div><pre><span class="pc">/ M4 · the tickerplant on modules (run by labs/m4-pubsub.sh)</span>
+    <div class="cmds"><div class="outs one"><div class="out vx"><div class="vh"><b>KDB-X</b><span>5 2026.10.23 m64 · lab 90110773</span></div><pre><span class="pc">/ M4 · the tickerplant on modules (run by labs/m4-pubsub.sh)</span>
 <span class="pq">q)tp:hopen 5710</span>
 <span class="pq">q)rdb:hopen 5711</span>
 <span class="pc">/ the plant: what it serves, and who subscribes (was count each .u.w)</span>
@@ -1561,11 +1755,47 @@ quote| 1
 trade| 1
 <span class="pc">/ the vanilla RDB filled itself through the module&#x27;s .u.sub</span>
 <span class="pq">q)rdb&quot;tables[]!count each value each tables[]&quot;</span>
-quote| 0
-trade| 0
+quote| 25433
+trade| 2619
 <span class="pq">q)rdb&quot;select n:count i by sym from trade&quot;</span>
-sym| n
----| -
+sym   | n 
+------| --
+AAPL  | 57
+AGEN  | 63
+AIG   | 59
+AMD   | 45
+AMTM  | 39
+AMZN  | 47
+ARBE.W| 45
+ASND  | 53
+BAC   | 47
+BIIB  | 51
+BSBK  | 44
+CAMP  | 53
+CCL   | 52
+CPRT  | 55
+CUZ   | 61
+DELL  | 41
+DERM  | 37
+DOW   | 43
+EMA   | 53
+FMTM  | 46
+GOGO  | 53
+GOOG  | 62
+HPQ   | 57
+IBM   | 42
+INTC  | 49
+IONS  | 49
+ISHG  | 55
+ITOL  | 54
+META  | 60
+MSFT  | 42
+MVIS  | 51
+NIO   | 51
+NVDA  | 44
+ORCL  | 56
+PBW   | 54
+..
 <span class="pc">/ the filter on upd: a table the plant does not carry is refused, by name</span>
 <span class="pq">q)tp&quot;.u.upd[`trades;()]&quot;</span>
 <span class="er">&#x27;unknown table: trades</span>
@@ -1771,28 +2001,68 @@ trade:0#fix trade;
 quote:0#fix quote;
 / only trade and quote are streamed; anything else in the root would become a table the plant serves
 delete nbbo, master, exnames, fix, getInMemoryTables from `.;</pre></div></div></details>
-  <details class="srcfile"><summary><span class="fn">feedx.q</span><span class="lc">18 lines</span></summary><div class="body"><div class="code"><pre>/ feedx.q : replay Datagen&#x27;s synthetic trades and quotes into a tickerplant
-/ usage:  q feedx.q [:host]:5010
+  <details class="srcfile"><summary><span class="fn">feedx.q</span><span class="lc">36 lines</span></summary><div class="body"><div class="code"><pre>/ feedx.q : replay Datagen&#x27;s synthetic trades and quotes into a tickerplant
+/ usage:  q feedx.q [::5010 | :host:5010]
 ([getInMemoryTables]):use`kx.datagen.capmkts
 (trade;quote;nbbo;master;exnames):getInMemoryTables[]
-fix:{[t] `time xasc update time:&quot;n&quot;$time from `time`sym xcols t}
+/ enumerated columns become plain symbols: the plant has no sym domain to resolve them against
+fix:{[t] t:@[t;where(abs type each flip t)within 20 76h;value]; `time xasc update time:&quot;n&quot;$time from `time`sym xcols t}
 T:fix trade; Q:fix quote;
+/ diagnostics: the schema being sent, and any column that will not serialise for IPC
+-1&quot;feedx: trade &quot;,.Q.s1 exec c!t from meta T; -1&quot;feedx: quote &quot;,.Q.s1 exec c!t from meta Q;
+bad:{[n;t] if[count b:where not {@[{-8!x;1b};x;0b]} each flip 1#t; -2&quot;feedx: ERROR &#x27;&quot;,n,&quot; columns will not serialise: &quot;,.Q.s1 b; exit 1]}
+bad[&quot;trade&quot;;T]; bad[&quot;quote&quot;;Q];
 
-h:neg hopen `$$[count .z.x; first .z.x; &quot;:5010&quot;];
+/ &quot;:5710&quot; is a FILE named 5710 to hopen; a port needs &quot;::5710&quot; or &quot;:host:5710&quot;.
+/ (A file handle took the sync probe and ignored it, and refused the async send with &#x27;type.)
+a:$[count .z.x; first .z.x; &quot;::5010&quot;]; if[(&quot;:&quot;=first a)&amp;not&quot;:&quot;in 1_a; a:&quot;:&quot;,a];
+h:neg hopen `$a;
+/ diagnostics: the same message, empty, sent four ways. Each line says which step
+/ raises the error: building it, serialising it, the plant running it (sync
+/ returns the plant&#x27;s own error), or the async send
+pr:{[n;f] -1&quot;feedx: probe &quot;,n,&quot;: &quot;,.Q.s1 @[f;::;{&quot;ERROR &#x27;&quot;,x}]};
+pr[&quot;build&quot;;{m::(&quot;.u.upd&quot;;`trade;value flip 0#T); type each m}];
+pr[&quot;serialise&quot;;{count -8!m}];
+pr[&quot;sync&quot;;{(abs h) m}];
+pr[&quot;async&quot;;{h m; `sent}];
 / time is already a timespan, so the plant keeps it rather than stamping its own
 send:{[t;s] if[count s; h(&quot;.u.upd&quot;;t;value flip s)]}
 
 it:iq:0; b:50;                                         / 50 trades a tick, quotes in proportion
 qb:ceiling b*(count Q)%count T;
-.z.ts:{ send[`trade;b sublist it _ T]; it+:b;
-        send[`quote;qb sublist iq _ Q]; iq+:qb;
-        if[it&gt;=count T; -1&quot;feedx: end of data&quot;; system&quot;t 0&quot;] }
+tick:{ send[`trade;b sublist it _ T]; it+:b;
+       send[`quote;qb sublist iq _ Q]; iq+:qb;
+       if[it&gt;=count T; -1&quot;feedx: end of data&quot;; system&quot;t 0&quot;] }
+/ a timer error would otherwise print only its name: show the stack, and stop
+.z.ts:{.Q.trp[tick;x;{-2&quot;feedx: ERROR &#x27;&quot;,x,&quot;\n&quot;,.Q.sbt y; -2&quot;feedx: h=&quot;,(.Q.s1 h),&quot; it=&quot;,(string it),&quot; iq=&quot;,string iq; system&quot;t 0&quot;}]}
 system&quot;t 100&quot;;
 -1&quot;feedx: &quot;,(string count T),&quot; trades, &quot;,(string count Q),&quot; quotes; \\t 0 to pause&quot;;</pre></div></div></details>
 
   <div class="shard-note" id="virtual-tables">
     <div class="note-title">Beyond Syntax: Virtual Tables</div>
-    <p>One module changes what a table <i>is</i> without changing a word of the q you write against it. <code>kx.pq.t</code> builds a <b>virtual table</b> over data already on disk, Parquet files or a directory layout of your own, from a catalogue of partitions (<code>mkP</code>). Directory names such as a date or an instrument become virtual columns, so a <code>where</code> on them prunes whole partitions, and Parquet row groups are pruned too. The point for this document is what stays the same: <code>select … where date=…, sym=…</code> reads exactly as it does against a classic <code>date/table/column</code> HDB.</p>
+    <svg viewBox="0 0 760 170" role="img" aria-label="On the left, files on disk in folders named by date and then by symbol, each holding a Parquet file. On the right, the one table q sees: date and sym columns that come from the folder names, and price and size columns read from the files. A query with where date and sym only opens the matching folder." style="display:block;width:100%;max-width:760px;height:auto;margin:6px 0 10px">
+  <defs><marker id="vt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>
+  <text x="0" y="14" font-family="JetBrains Mono,monospace" font-size="10" fill="var(--muted)" letter-spacing=".06em">ON DISK: FOLDERS AND PARQUET FILES</text>
+  <g font-family="JetBrains Mono,monospace" font-size="11.5" fill="var(--fg)">
+    <text x="0" y="38">data/</text>
+    <text x="0" y="56">├─ 2026.11.20/</text><text x="0" y="74">│  ├─ AAPL/trade.parquet</text><text x="0" y="92">│  └─ MSFT/trade.parquet</text>
+    <text x="0" y="110">└─ 2026.11.21/</text><text x="0" y="128" fill="var(--s1)" font-weight="500">   ├─ AAPL/trade.parquet  ←</text><text x="0" y="146">   └─ MSFT/trade.parquet</text>
+  </g>
+  <path d="M300 92 H372" stroke="currentColor" stroke-width="1.2" marker-end="url(#vt)"/>
+  <text x="336" y="84" text-anchor="middle" font-family="Schibsted Grotesk,sans-serif" font-size="10.5" fill="var(--muted)">mkP</text>
+  <text x="390" y="14" font-family="JetBrains Mono,monospace" font-size="10" fill="var(--muted)" letter-spacing=".06em">IN q: ONE TABLE</text>
+  <rect x="390" y="24" width="300" height="104" rx="5" fill="var(--sheet)" stroke="var(--line)"/>
+  <g font-family="JetBrains Mono,monospace" font-size="11.5">
+    <text x="402" y="44" fill="var(--s1)" font-weight="600">date</text><text x="490" y="44" fill="var(--s1)" font-weight="600">sym</text><text x="550" y="44" fill="var(--fg)" font-weight="600">price</text><text x="620" y="44" fill="var(--fg)" font-weight="600">size</text>
+    <text x="402" y="66" fill="var(--fg)">2026.11.21</text><text x="490" y="66" fill="var(--fg)">AAPL</text><text x="550" y="66" fill="var(--fg)">182.4</text><text x="620" y="66" fill="var(--fg)">100</text>
+    <text x="402" y="84" fill="var(--fg)">2026.11.21</text><text x="490" y="84" fill="var(--fg)">AAPL</text><text x="550" y="84" fill="var(--fg)">182.5</text><text x="620" y="84" fill="var(--fg)">200</text>
+    <text x="402" y="102" fill="var(--muted)">…</text>
+  </g>
+  <text x="402" y="120" font-family="Schibsted Grotesk,sans-serif" font-size="10.5" fill="var(--s1)">from folder names</text><text x="550" y="120" font-family="Schibsted Grotesk,sans-serif" font-size="10.5" fill="var(--muted)">from the files</text>
+  <text x="390" y="152" font-family="JetBrains Mono,monospace" font-size="11.5" fill="var(--fg)">select from trade where date=2026.11.21, sym=`AAPL</text>
+  <text x="390" y="167" font-family="Schibsted Grotesk,sans-serif" font-size="10.5" fill="var(--muted)">opens one file, marked ←; the rest are never read</text>
+</svg>
+    <p>In one picture: folders on disk become one table. One module changes what a table <i>is</i> without changing a word of the q you write against it. <code>kx.pq.t</code> builds a <b>virtual table</b> over data already on disk, Parquet files or a directory layout of your own, from a catalogue of partitions (<code>mkP</code>). Directory names such as a date or an instrument become virtual columns, so a <code>where</code> on them prunes whole partitions, and Parquet row groups are pruned too. The point for this document is what stays the same: <code>select … where date=…, sym=…</code> reads exactly as it does against a classic <code>date/table/column</code> HDB.</p>
     <p>That makes it an architecture question, not a grammar one: a layout partitioned by date <i>and</i> sym, and intraday data written straight to disk and queried beside history. It gets a document of its own; until then, start with Data Intellect's <a href="https://dataintellect.com/blog/virtual-table-starter-pack/">Virtual Table Starter Pack</a>, their <a href="https://github.com/DataIntellectTech/TorQ-Virtual-Tables">TorQ-Virtual-Tables</a> overlay, and KX's <a href="https://code.kx.com/kdb-x/modules/parquet/reference.html">Parquet reference</a>.</p>
   </div>
 </section>
@@ -1800,26 +2070,26 @@ system&quot;t 100&quot;;
 <!-- ───────────── WHAT BREAKS ───────────── -->
 <section class="part" id="breaks">
   <h2>What Breaks When You Upgrade</h2>
-  <p class="lead">Every NUC in this document on one page, in the order you would meet them going from 3.x to KDB-X. The <i>symptom</i> column is the useful one: a parse error tells you where it is, a changed result does not.</p>
+  <p class="lead">Every NUC in this document on one page, in the order you would meet them going from 3.x to KDB-X. <i>Kind</i> says how it will show itself, from easiest to find to hardest: <b>parse</b> stops a script loading and says where; <b>runtime error</b> fails when the line runs; <b>operational</b> changes what monitoring, startup or integration code sees; <b>silent</b> runs and returns a different answer, and only a regression test finds it.</p>
   <div class="tbl"><table class="wide">
-    <thead><tr><th>Since</th><th>Change</th><th>Symptom</th><th>Fix</th><th>Lab</th></tr></thead>
+    <thead><tr><th>Since</th><th>Kind</th><th>Change</th><th>Symptom</th><th>Fix</th><th>Lab</th></tr></thead>
     <tbody>
-      <tr><td><span class="tag v40">4.0</span></td><td>a <code>select</code> column named like a group</td><td><code>dup names for cols/groups</code> at parse</td><td>rename: <code>by g:a</code></td><td><a href="#lab-c1">C1</a></td></tr>
-      <tr><td><span class="tag v40">4.0</span></td><td><code>lj</code> right side must be keyed</td><td>error on an unkeyed table</td><td><code>1!</code> or <code>xkey</code> it</td><td><a href="#lab-c1">C1</a></td></tr>
-      <tr><td><span class="tag v40">4.0</span></td><td>aggregates over <code>by</code> on atoms; <code>by</code> length must match</td><td>a different number</td><td>check any <code>select … by</code> on an atom</td><td><a href="#lab-c1">C1</a></td></tr>
-      <tr><td><span class="tag v41">4.1</span></td><td><code>value</code> in <code>select</code>/<code>exec</code> reads globals</td><td>a different number, silently</td><td>pass locals as arguments</td><td><a href="#lab-c1">C1</a></td></tr>
-      <tr><td><span class="tag v41">4.1</span></td><td><code>update … by</code> on a dictionary</td><td><code class="errtag">'type</code></td><td>drop the <code>by</code></td><td><a href="#lab-c1">C1</a></td></tr>
-      <tr><td><span class="tag v41">4.1</span></td><td><code>([]a::e)</code></td><td><code class="errtag">'parse</code></td><td>assign <code>a</code> first</td><td><a href="#lab-b4">B4</a></td></tr>
-      <tr><td><span class="tag v41">4.1</span></td><td>assigning to <code>do</code>, <code>exit</code>, <code>if[…]</code>; <code>():1</code></td><td><code class="errtag">'assign</code>, <code class="errtag">'match</code> at parse</td><td>rename</td><td><a href="#lab-b4">B4</a></td></tr>
-      <tr><td><span class="tag v41">4.1</span></td><td>projection with too many arguments, <code>{x}[;1]</code></td><td><code class="errtag">'rank</code></td><td>fix the arity</td><td><a href="#lab-b4">B4</a></td></tr>
-      <tr><td><span class="tag v41">4.1</span></td><td><code>.z.W</code> returns <code>handles!bytes</code></td><td>monitoring shows sums, not lists</td><td><code>sum each .z.W</code> works on both</td><td>—</td></tr>
-      <tr><td><span class="tag v41">4.1</span></td><td>handles inside <code>peach</code></td><td><code class="errtag">'nosocket</code></td><td>one-shot queries instead</td><td>—</td></tr>
-      <tr><td><span class="tag v41">4.1</span></td><td><code>.Q.id</code> on atoms and duplicate column names</td><td>different sanitised names</td><td>check generated column names</td><td><a href="#lab-a2">A2</a></td></tr>
-      <tr><td><span class="tag vX">KDB-X</span></td><td>float→int out of range, <code>div</code> by zero</td><td><code>0Ni</code> instead of <code>0i</code> on ARM</td><td>handle nulls</td><td><a href="#lab-c2">C2</a></td></tr>
-      <tr><td><span class="tag vX">KDB-X</span></td><td><code>.Q.lim[]</code> returns a dictionary</td><td>positional indexing breaks</td><td>index by key</td><td><a href="#lab-a2">A2</a></td></tr>
-      <tr><td><span class="tag vX">KDB-X</span></td><td>the empty path <code>`:</code> is invalid</td><td>operations that accepted it now refuse it</td><td><code>`:.</code></td><td>—</td></tr>
-      <tr><td><span class="tag vX">KDB-X</span></td><td><code>-16!x</code> returns a long</td><td>a type check on <code>-6h</code> fails</td><td>compare as long</td><td><a href="#lab-c2">C2</a></td></tr>
-      <tr><td><span class="tag vX">KDB-X</span></td><td><code>QINIT</code> not loaded under protected evaluation; SQL interface (<code>s.k_</code>) a separate download</td><td>startup differs</td><td>see the release notes</td><td>—</td></tr>
+      <tr><td><span class="tag v40">4.0</span></td><td>Parse</td><td>a <code>select</code> column named like a group</td><td><code>dup names for cols/groups</code> at parse</td><td>rename: <code>by g:a</code></td><td><a href="#lab-c1">C1</a></td></tr>
+      <tr><td><span class="tag v40">4.0</span></td><td>Runtime error</td><td><code>lj</code> right side must be keyed</td><td>error on an unkeyed table</td><td><code>1!</code> or <code>xkey</code> it</td><td><a href="#lab-c1">C1</a></td></tr>
+      <tr><td><span class="tag v40">4.0</span></td><td>Silent</td><td>aggregates over <code>by</code> on atoms; <code>by</code> length must match</td><td>a different number</td><td>check any <code>select … by</code> on an atom</td><td><a href="#lab-c1">C1</a></td></tr>
+      <tr><td><span class="tag v41">4.1</span></td><td>Silent</td><td><code>value</code> in <code>select</code>/<code>exec</code> reads globals</td><td>a different number, silently</td><td>pass locals as arguments</td><td><a href="#lab-c1">C1</a></td></tr>
+      <tr><td><span class="tag v41">4.1</span></td><td>Runtime error</td><td><code>update … by</code> on a dictionary</td><td><code class="errtag">'type</code></td><td>drop the <code>by</code></td><td><a href="#lab-c1">C1</a></td></tr>
+      <tr><td><span class="tag v41">4.1</span></td><td>Parse</td><td><code>([]a::e)</code></td><td><code class="errtag">'parse</code></td><td>assign <code>a</code> first</td><td><a href="#lab-b4">B4</a></td></tr>
+      <tr><td><span class="tag v41">4.1</span></td><td>Parse</td><td>assigning to <code>do</code>, <code>exit</code>, <code>if[…]</code>; <code>():1</code></td><td><code class="errtag">'assign</code>, <code class="errtag">'match</code> at parse</td><td>rename</td><td><a href="#lab-b4">B4</a></td></tr>
+      <tr><td><span class="tag v41">4.1</span></td><td>Runtime error</td><td>projection with too many arguments, <code>{x}[;1]</code></td><td><code class="errtag">'rank</code></td><td>fix the arity</td><td><a href="#lab-b4">B4</a></td></tr>
+      <tr><td><span class="tag v41">4.1</span></td><td>Operational</td><td><code>.z.W</code> returns <code>handles!bytes</code></td><td>monitoring shows sums, not lists</td><td><code>sum each .z.W</code> works on both</td><td>—</td></tr>
+      <tr><td><span class="tag v41">4.1</span></td><td>Operational</td><td>handles inside <code>peach</code></td><td><code class="errtag">'nosocket</code></td><td>one-shot queries instead</td><td>—</td></tr>
+      <tr><td><span class="tag v41">4.1</span></td><td>Silent</td><td><code>.Q.id</code> on atoms and duplicate column names</td><td>different sanitised names</td><td>check generated column names</td><td><a href="#lab-a2">A2</a></td></tr>
+      <tr><td><span class="tag vX">KDB-X</span></td><td>Silent</td><td>float→int out of range, <code>div</code> by zero</td><td><code>0Ni</code> instead of <code>0i</code> on ARM</td><td>handle nulls</td><td><a href="#lab-c2">C2</a></td></tr>
+      <tr><td><span class="tag vX">KDB-X</span></td><td>Operational</td><td><code>.Q.lim[]</code> returns a dictionary</td><td>positional indexing breaks</td><td>index by key</td><td><a href="#lab-a2">A2</a></td></tr>
+      <tr><td><span class="tag vX">KDB-X</span></td><td>Runtime error</td><td>the empty path <code>`:</code> is invalid</td><td>operations that accepted it now refuse it</td><td><code>`:.</code></td><td>—</td></tr>
+      <tr><td><span class="tag vX">KDB-X</span></td><td>Silent</td><td><code>-16!x</code> returns a long</td><td>a type check on <code>-6h</code> fails</td><td>compare as long</td><td><a href="#lab-c2">C2</a></td></tr>
+      <tr><td><span class="tag vX">KDB-X</span></td><td>Operational</td><td><code>QINIT</code> not loaded under protected evaluation; SQL interface (<code>s.k_</code>) a separate download</td><td>startup differs</td><td>see the release notes</td><td>—</td></tr>
     </tbody>
   </table></div>
 
@@ -1851,8 +2121,6 @@ system&quot;t 100&quot;;
     <div class="refitem"><span class="rtag">reference · KX</span><div><a href="https://code.kx.com/kdb-x/ref/namespaces.html">Namespaces (KDB-X)</a><p>Globals retain the namespace a function was defined in; the <code>q.ns)</code> prefix.</p></div></div>
     <div class="refitem"><span class="rtag">guide · KX</span><div><a href="https://code.kx.com/kdb-x/how_to/basics/data_structures/dictionaries.html">How to work with dictionaries (KDB-X)</a><p>Literal syntax beside Python's, and why it matters most for singletons.</p></div></div>
     <div class="refitem"><span class="rtag">blog · KX</span><div><span style="color:var(--fg);font-weight:600">Woods, M.</span> <a href="https://kx.com/blog/discover-kdb-4-1s-new-features/">Discover kdb+ 4.1's New Features</a><p>The release announcement: literals, patterns, filters, and the <code>fluxCapacitor</code> example.</p></div></div>
-    <div class="refitem"><span class="rtag">video</span><div><a href="https://www.youtube.com/watch?v=z1sGo3hZ1AE">YouTube: z1sGo3hZ1AE</a><p>Transcript pending; title and summary to follow.</p></div></div>
-    <div class="refitem"><span class="rtag">video</span><div><a href="https://www.youtube.com/watch?v=amLvHevLh-I">YouTube: amLvHevLh-I</a><p>Transcript pending; title and summary to follow.</p></div></div>
 
     <div class="span" style="font-family:var(--display);font-variant-caps:small-caps;letter-spacing:.035em;font-weight:600;font-size:18px;margin-top:10px;color:var(--fg)">Modules</div>
     <div class="refitem"><span class="rtag">framework · KX</span><div><a href="https://code.kx.com/kdb-x/modules/module-framework/quickstart.html">Get started with the module framework</a><p><code>use</code>, <code>export</code>, <code>.z.m</code> and <code>.z.M</code>, the search path, reserved names, submodules, and the qSQL lookup rule.</p></div></div>

@@ -1,4 +1,7 @@
 / B3 · the pattern conditional :[v;p1;r1;…;rd] (4.1)
+/<< Pattern matching, type checks, filter functions and the pattern
+/<< conditional are new in 4.1 (Changes in 4.1, "Pattern matching";
+/<< release notes 2024.02.02). Before 4.1 none of these lines parse as shown.
 a: :[1i;r:`f;"float";r:`i;"int";"other"]
 a
 / the first pattern that matches wins; later branches are never evaluated

@@ -1,13 +1,13 @@
 / M2 · writing a module: tick.cfg (KDB-X)
 cfg:use`tick.cfg
 key cfg
-spec:([port:5010;logdir:(`:./log);tables:`trade`quote;pubMs:100])
+spec:([port:5010;logdir:`:./log;tabs:`trade`quote;pubMs:100])
 cfg.load spec
 / the environment overrides a default, and is parsed to the default's type
 setenv[`TICK_PORT;"6010"]
 cfg.load spec
 / take only what you need with a dictionary pattern
-([port;tables]):cfg.load spec
+([port;tabs]):cfg.load spec
 port
 / a value that does not parse is refused by name
 setenv[`TICK_PORT;"oops"]

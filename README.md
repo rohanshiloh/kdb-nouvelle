@@ -2,7 +2,7 @@
 
 *New Grammar for an Old Language*
 
-The syntax q gained from kdb+ 4.0 to KDB-X (dictionary literals, pattern matching, filter functions, modules) and the changes that break old code. Every claim is a lab, run on KDB-X beside what KX's release notes say it did before (labs/before/), or beside a real kdb+ 4.x run if you have a licence.
+The syntax q gained from kdb+ 4.0 to KDB-X (dictionary literals, pattern matching, filter functions, modules) and the changes that break old code. Every claim is a lab, run on KDB-X beside what KX's release notes say it did before, or beside a real kdb+ 4.x run if you have a licence.
 
 **Read it:** https://rohanshiloh.github.io/kdb-nouvelle/
 
@@ -12,9 +12,10 @@ The syntax q gained from kdb+ 4.0 to KDB-X (dictionary literals, pattern matchin
 index.html          the document, built by build.py (served by GitHub Pages)
 src/                its sources: body.html (prose), _head/_style/_extra/_script
 build.py            src/ + labs/ + out/  ->  index.html
-labs/               one script per lab, a1-…q to m4-…q, and run.q, the runner
+labs/               one script per lab, a1-…q to m4-…q, and run.q, the runner;
+                    a line's "/<" comments say what it did before the change
 run-labs.sh         runs every lab on each q, writes out/, rebuilds index.html
-out/                transcripts: <lab>.4x.txt, <lab>.x.txt, test-<module>.x.txt
+out/                transcripts written by run-labs.sh (not committed; index.html has them)
 mod/tick/           three KDB-X modules: tick.cfg, tick.check, tick.pubsub (+ tests)
 tickx.q             KX's tick.q brought forward onto tick.pubsub and tick.check
 feedx.q             replays Datagen's synthetic trades and quotes into tickx.q
@@ -31,7 +32,7 @@ Q4=… QX=… ./run-labs.sh b2                     # just the labs whose name st
 QX=~/.kx/bin/q labs/m4-pubsub.sh               # the tickerplant lab (several processes)
 ```
 
-`Q4` is kdb+ 4.0 or 4.1 and `QX` is KDB-X; leave either out and its column stays "not yet run". Each run rewrites `out/` and `index.html`; commit both.
+`QX` is KDB-X. With a kdb+ 4.x licence, `Q4=…` replaces the documented Before column with a real run. Each run rewrites `out/` and `index.html`; commit `index.html`.
 
 The labs need these KDB-X modules on the search path: `kx.os` and `kx.datagen.capmkts` (from KDB-X or KX's GitHub) and `kx.test` (installed by `setup.sh`). `run-labs.sh` adds this repository's `mod/` to `QPATH`.
 

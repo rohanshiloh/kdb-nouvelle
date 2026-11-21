@@ -1,7 +1,0 @@
-/ What each line did before the change, per the release notes.
-q)\l labs/inc/outer.q
-— new: \l .:path is relative to the loading file (KDB-X 2026.04.01)
-q)`::[(":localhost:5999";500);"1+1"]
-— new: a one-shot query with a timeout (4.0 2020.03.09)
-q)type .z.H
-— new: .z.H (4.0 2020.06.01); a sorted list since 4.1 2024.07.08
